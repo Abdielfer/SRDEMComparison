@@ -968,41 +968,6 @@ def computeProximity(inRaster, value:int= 1, outPath: os.path = None) -> os.path
     return outPath
 
 
-############################
-#### Datacube_ Extract  ####
-############################
-
-def dc_describe(cfg: DictConfig)-> bool:
-    '''
-    Configurate the call of d.describe() with hydra parameters.
-    '''
-    instantiate(OmegaConf.create(cfg.dc_Extract_params['dc_describeCollections']))
-    return True
-
-def dc_serach(cfg: DictConfig)-> str :
-    '''
-    Configurate the call of d.search()  with hydra parameters.
-    return the output path of the search result.
-    '''
-    out = instantiate(OmegaConf.create(cfg.dc_Extract_params['dc_search']))
-    return out
-
-def dc_extraction(cfg: DictConfig, args:dict=None)-> str:
-    '''
-    Configurate the call of extract_cog() with hydra parameters.
-    return the output path of the extracted file.
-    '''
-    dict_DcExtract = OmegaConf.create(cfg.dc_Extract_params['dc_extrac_cog'])
-    if args is not None:
-        dict_DcExtract = updateDict(dict_DcExtract,args)
-    print(f"New dcExtract Dict:  {dict_DcExtract}")
-   
-    ##  procede to extraction
-    out = instantiate(dict_DcExtract)
-    return out
-
-
-    
 #########################
 ####   WhiteBoxTools  ###
 #########################
