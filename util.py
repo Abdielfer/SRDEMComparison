@@ -446,8 +446,8 @@ def reporSResDEMComparison(cfg: DictConfig):
     cdemElevStat = computeRaterStats(cdem)
     srdemElevStats = computeRaterStats(sr_dem)
         # Log Elevation Stats.
-    update_logs({"cdem elevation stat befor filling: ": cdemElevStat})
-    update_logs({"sr_dem elevation stat befor filling: ": srdemElevStats})
+    update_logs({"cdem elevation stats befor filling: ": cdemElevStat})
+    update_logs({"sr_dem elevation stats befor filling: ": srdemElevStats})
         # plot elevation histogram
     plotHistComparison(cdem,sr_dem,title='Elevation comparison: cdem_16m vs srdem_8m')
     
@@ -496,7 +496,7 @@ def reporSResDEMComparison(cfg: DictConfig):
         # Compute Flow accumulation and Flow accumulation's stats on Filled cdem
     FAcc_cdem = WbT.d8_flow_accumulation(cdem_Filled)
     FAcc_cdem_Stats = computeRaterStats(FAcc_cdem)
-    update_logs({"Flow accumulation stats from cdem stat: ": FAcc_cdem_Stats})
+    update_logs({"Flow accumulation stats from cdem: ": FAcc_cdem_Stats})
         # Compute Flow accumulation and Flow accumulation's stats on Filled sr_cdem
     FAcc_sr_cdem = WbT.d8_flow_accumulation(sr_dem_Filled)
     FAcc_sr_cdem_Stats = computeRaterStats(FAcc_sr_cdem)
@@ -592,11 +592,7 @@ def computeRasterValuePercent(rasterPath, value:int=1)-> float:
     rasDataNan = replaceRastNoDataWithNan(rasterPath)
     rasNoNaNCont = np.count_nonzero(rasDataNan != np.nan)
     valuCont = np.count_nonzero(rasDataNan == value)
-    percent = (valuCont/rasNoNaNCont)*100
-    print(f"Computed percent : {percent}")
-    abs = absolute_value(percent)
-    print(f"Computed abs : {abs}")
-    return abs
+    return (valuCont/rasNoNaNCont)*100
 
 def replace_negative_values(raster_path, fillWith:float = 0.0):
     '''
