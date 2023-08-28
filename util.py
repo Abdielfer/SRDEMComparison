@@ -19,9 +19,10 @@ from osgeo import gdal_array
 from osgeo.gdalconst import *
 import pcraster as pcr
 from pcraster import *
-
 from omegaconf import DictConfig, OmegaConf
+import hydra
 from hydra.utils import instantiate
+import logging 
 
 ### General applications ##
 class timeit(): 
@@ -272,7 +273,66 @@ def createCSVFromList(pathToSave: os.path, listData:list):
     read_file.to_csv (pathToSave, index=None)
     removeFile(textPath)
     return True
- 
+
+def updateDict(dic:dict, args:dict)->dict:
+    outDic = dic
+    for k in args.keys():
+        if k in dic.keys():
+            outDic[k]= args[k]
+    return outDic
+
+class logg_Manager:
+    '''
+    This class creates a logger object that writes logs to both a file and the console. 
+    @log_name: lLog_name. Logged at the info level by default.
+    @log_dict: Dictionary, Sets the <attributes> with <values> in the dictionary. 
+    The logger can be customized by modifying the logger.setLevel and formatter attributes.
+
+    The update_logs method takes a dictionary as input and updates the attributes of the class to the values in the dictionary. The method also takes an optional level argument that determines the severity level of the log message. 
+    '''
+    def __init__(self,logName:str, log_dict:dict = {} ):# log_name, 
+        logpath = os.path.join(self.getHydraOutputDri(),'logName')
+        self.logger = logging.getLogger('logName')
+        self.logger.setLevel(logging.INFO)
+        self.formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        self.file_handler = logging.FileHandler(logpath)
+        self.file_handler.setLevel(logging.DEBUG)
+        self.file_handler.setFormatter(self.formatter)
+        self.stream_handler = logging.StreamHandler()
+        self.stream_handler.setLevel(logging.ERROR)
+        self.stream_handler.setFormatter(self.formatter)
+        self.logger.addHandler(self.file_handler)
+        self.logger.addHandler(self.stream_handler)
+        for key, value in log_dict.items():
+            setattr(self, key, value)
+            self.logger.info(f'{key} - {value}')
+    
+    def update_logs(self, log_dict, level=logging.INFO):
+        for key, value in log_dict.items():
+            setattr(self, key, value)
+            if level == logging.DEBUG:
+                self.logger.debug(f'{key} - {value}')
+            elif level == logging.WARNING:
+                self.logger.warning(f'{key} - {value}')
+            elif level == logging.ERROR:
+                self.logger.error(f'{key} - {value}')
+            else:
+                self.logger.info(f'{key} - {value}')
+    @staticmethod
+    def getHydraOutputDri()-> str:
+        hydra_cfg = hydra.core.hydra_config.HydraConfig.get()   
+        return hydra_cfg['runtime']['output_dir']
+
+def update_logs(log_dict, level=logging.INFO):
+        for key, value in log_dict.items():
+            if level == logging.DEBUG:
+                logging.debug(f'{key} - {value}')
+            elif level == logging.WARNING:
+                logging.warning(f'{key} - {value}')
+            elif level == logging.ERROR:
+                logging.error(f'{key} - {value}')
+            else:
+                logging.info(f'{key} - {value}')
 
 ###################            
 ### General GIS ###
@@ -317,64 +377,132 @@ def reshape_as_raster(arr):
     '''
     return np.transpose(arr, [2, 0, 1])
 
-def updateDict(dic:dict, args:dict)->dict:
-    outDic = dic
-    for k in args.keys():
-        if k in dic.keys():
-            outDic[k]= args[k]
-    return outDic
-
-def plotHistComparison(DEM1,DEM2, bins:int = 50):
-    # Reding raster 1:
-    data_DEM1,_= readRasterWithRasterio(DEM1)  # Return an Array
-    data_DEM1 = np.resize(data_DEM1,(1))
-    # Reding raster 2:
-    data_DEM2,_= readRasterWithRasterio(DEM2)  # Return an Array
-    # data_DEM2 = np.resize(data_DEM2,(1))
-    # Setting plot
-    n_bins = bins
+def plotHistComparison(DEM1,DEM2,title:str='', bins:int = 50):
+    # Reding raster. 
+    dataReCHaped = np.reshape(readRasterAsArry(DEM1),(1,-1))
+    dataReCHaped2 = np.reshape(readRasterAsArry(DEM2),(1,-1))
+    # Prepare plot
     fig, ax = plt.subplots(1,sharey=True, tight_layout=True)
-    # x=np.array((data_DEM1[0],data_DEM2[0]))
-    
-    ax.hist(data_DEM1, n_bins, density=True, histtype='step', label=['cdem'],stacked=True, fill=False)
-    # ax.hist(data_DEM2[0], n_bins, density=True, histtype='step', label=colors,stacked=True, fill=False)
+    ax.hist(dataReCHaped[0],bins,histtype='step',label=['cdem 16m'])
+    ax.hist(dataReCHaped2[0],bins,histtype='step',label=['srdem 8m'])
     ax.legend(prop={'size': 10})
-    ax.set_title('cdem_16m vs srdem_8m') 
-    
+    ax.set_title(title) 
     fig.tight_layout()
-    plt.show()
-    pass
-
-def reporSResDEMComparison(DEM1,DEM2):
-    '''
-    The goal of this function is to evaluate the DEM enhancement with Super Resolution algorithms. 
+    # plt.show()
+    
+def reporSResDEMComparison(cfg: DictConfig):
+    ''', logName:str
+    The goal of this function is to create a report of comparison, between cdem and the DEM enhanced with Super Resolution algorithms. 
+    
     Data:
     cdem: Canadian Digital Elevation Model at 16m resolution.
     srdem: Super Resolution Algorithm Output at 8m resolution. 
 
-    Goals: Evaluate the impact of Super-Resolution algorithms in the cdem transformation. 
+    Goals: Report some geomorphological measurements to evaluate the impact of super-Resolution algorithms in the cdem. 
 
-        The similarity between the source cdem and srdem will be evaluated through statistics and products derived from the DEM. 
+        The similarity between the source cdem and srdem will be evaluated through statistics and products derived from the DEM. Since both dems are not in the same resolution, the comparison is done in terms of percentage and visual inspection. 
 
-    Proposed measurements of comparison (description): 
+        Histogram interpretaion: Since resolution goes from 16m to 8m, the srdem has 4X the number of pixels of cdem. One should consider this difference when looking at the histogrmas. 
+
+        
+    Measurements of comparison (description): 
 
         - Elevation statistics' summary comparison:
-                Compute mean, std, mode, max and min. Compare the histograms. 
+                Compute Min, Man, Mean, STD, Mode and the NoNaNCont. Compare the histograms. 
         
+        - Filled area comparison: 
+                Fill the dems depressions and pits with WhangAndLiu algorithms. Compute the differnet between the original dem <ex. cdem> and the filled dem <ex. cdem_filled>. Compute the percentage of transformed ares on each dem (cdem_16m and srdem_8m). Compare the percentage of transformed areas to evaluate the inpact of super resolution algorith in the input dem.         
+
         - Slope statistics' summary:
-                Compute mean, std, mode, max and min. Compare the histograms.
+                Compute Min, Man, Mean, STD, Mode and the NoNaNCont. Compare the histograms. 
 
         - Flow Accumulation summary:
-                Compute mean, std, mode, max and min. Compare the histograms.
-
-        - Filled area comparison: 
-                Fill the DEM depressions and pits with WhangAndLiu algorithms. Compute the percentage of transformed ares on each dem (cdem_16m and srdem_8m). Compare the percentage of transformed areas. 
+                Compute Min, Man, Mean, STD, Mode and the NoNaNCont. Compare the histograms.
 
         - River network visual comparison:
-                Compute strahler order (up to 5th order) and main streams (up to 3rd order). Create maps (Vector) with overlaps of both networks.
-            
+                Compute strahler order (up to 5th order) and main streams (up to 3rd order). Create maps (Vector) with overlaps of both networks for visual inspection. 
+            --??? Can we compute IoU to evaluate the river net similarity? 
     '''
+    in_cdem = cfg['cdemPath']
+    in_sr_dem = cfg['SRDEMPath']
+    ## Replace negative values. 
+    cdem = replace_negative_values(in_cdem)
+    sr_dem = replace_negative_values(in_sr_dem)
 
+
+    print(F"True or False : {cfg['WbTools_work_dir'] is None}")
+    ## Inicialize WhiteBoxTools
+    if  cfg['WbTools_work_dir'] == 'None':
+        perentPath,_,_ = get_parenPath_name_ext(cdem)
+        WbTools_wDir = perentPath
+    else: 
+        WbTools_wDir = cfg['WbTools_work_dir']    
+    WbT = WbT_dtmTransformer(WbTools_wDir) 
+    
+    ## Prepare report loging
+    logging.info({"WBTools working dir ": WbT.get_WorkingDir()})
+    
+    ##______ Elevations tatistics before filling : Compute mean, std, mode, max and min. Compare elevation histograms."
+    cdemElevStat = computeRaterStats(cdem)
+    srdemElevStats = computeRaterStats(sr_dem)
+        # Log Elevation Stats.
+    update_logs({"cdem elevation stat befor filling: ": cdemElevStat})
+    update_logs({"sr_dem elevation stat befor filling: ": srdemElevStats})
+        # plot elevation histogram
+    plotHistComparison(cdem,sr_dem,title='Elevation comparison: cdem_16m vs srdem_8m')
+    
+    ##______ Filled area comparison: Compute mean, std, mode, max and min. Compare the histograms."
+        #____Fill the DEMs with WhangAndLiu algorithms from WhiteBoxTools
+    cdem_Filled = WbT.fixNoDataAndfillDTM(cdem)
+    sr_dem_Filled = WbT.fixNoDataAndfillDTM(sr_dem)
+        #___ Compute and log percent of transformed areas. 
+            ########  cdem
+    cdem_statement = str("'"+cdem_Filled+"'"+'-'+"'"+cdem+"' > 0.05") # Remouve some noice because of aproximations with -0.05
+    cdem_transformations = addSubstringToName(cdem,'_TransformedArea')
+    cdem_Transformations_binary = WbT.rasterCalculator(cdem_transformations,cdem_statement)
+    cdem_Transformation_percent = computeRasterValuePercent(cdem_Transformations_binary)
+    update_logs({"Depretions an pit percent in cdem ": cdem_Transformation_percent})
+            ########  cdem
+    sr_cdem_statement = str("'"+sr_dem_Filled+"'"+' - '+"'"+sr_dem+"' > 0.05") # Remouve some noice because of aproximations with -0.05
+    sr_cdem_transformations = addSubstringToName(sr_dem,'_TransformedArea')
+    sr_cdem_Transformations_binary = WbT.rasterCalculator(sr_cdem_transformations,sr_cdem_statement)
+    sr_cdem_Transformation_percent = computeRasterValuePercent(sr_cdem_Transformations_binary)
+    update_logs({"Depretions an pit percent in sr_cdem ": sr_cdem_Transformation_percent})
+
+   ##______ Elevations tatistics AFTER filling : Compute mean, std, mode, max and min. Compare elevation histograms."
+    cdemFilledElevStat = computeRaterStats(cdem_Filled)
+    srdemFilledElevStats = computeRaterStats(sr_dem_Filled)
+        # Log Elevation Stats.
+    update_logs({"cdem_Filled elevation stats  ": cdemFilledElevStat})
+    update_logs({"sr_dem_Filled elevation stats  ": srdemFilledElevStats})
+        # plot elevation histogram of filled dems.
+    plotHistComparison(cdem_Filled,sr_dem_Filled,title='Elevation comparison after filling the dems: cdem_16m vs srdem_8m')
+
+
+    ##______ Slope statistics: Compute mean, std, mode, max and min. Compare slope histograms."
+        # Compute Slope and Slope stats
+    cdemSlope = WbT.computeSlope(cdem_Filled)
+    cdemSlopStats = computeRaterStats(cdemSlope)
+    sr_demSlope = WbT.computeSlope(sr_dem_Filled)
+    sr_demSlopeStats  = computeRaterStats(sr_demSlope)
+        # Log Slope Stats.
+    update_logs({"cdem slope stat ": cdemSlopStats})
+    update_logs({"sr_dem slope stat  ": sr_demSlopeStats})
+        # plot elevation histogram
+    print("### >>>> Preparing plot......")
+    plotHistComparison(cdemSlope,sr_demSlope,title='Slope comparison: cdem_16m vs srdem_8m')
+    
+    ##______ Flow Accumulation statistics: Compute mean, std, mode, max and min. Compare slope histograms."
+        # Compute Flow accumulation and Flow accumulation's stats on Filled cdem
+    FAcc_cdem = WbT.d8_flow_accumulation(cdem_Filled)
+    FAcc_cdem_Stats = computeRaterStats(FAcc_cdem)
+    update_logs({"Flow accumulation stats from cdem stat: ": FAcc_cdem_Stats})
+        # Compute Flow accumulation and Flow accumulation's stats on Filled sr_cdem
+    FAcc_sr_cdem = WbT.d8_flow_accumulation(sr_dem_Filled)
+    FAcc_sr_cdem_Stats = computeRaterStats(FAcc_sr_cdem)
+    update_logs({"Flow accumulation stats from sr_cdem: ": FAcc_sr_cdem_Stats})
+
+    plt.show()
 
 #######################
 ### Rasterio Tools  ###
@@ -425,12 +553,12 @@ def plotHistogram(raster, CustomTitle:str = None, bins: int=50, bandNumber: int 
     return True
 
 def replaceRastNoDataWithNan(rasterPath:os.path,extraNoDataVal: float = None)-> np.array:
-    rasterData,profil = readRaster(rasterPath)
+    rasterData,profil = readRasterWithRasterio(rasterPath)
     NOData = profil['nodata']
     rasterDataNan = np.where(((rasterData == NOData)|(rasterData == extraNoDataVal)), np.nan, rasterData) 
     return rasterDataNan
 
-def computeRaterStats(rasterPath:os.path):
+def computeRaterStats(rasterPath:os.path)-> dict:
     '''
     Read a reaste and return: 
     @Return
@@ -439,7 +567,7 @@ def computeRaterStats(rasterPath:os.path):
     @rasMean: Rater mean.
     @rasMode: Raster mode.
     @rasSTD: Raster standard deviation.
-    @rasNoNaNCont: Raster count of all NOT NoData pixels
+    @rasNoNaNCont: Raster count of all valid pixels <NOT NoData>. 
     '''
     rasDataNan = replaceRastNoDataWithNan(rasterPath)
     rasMin = np.nanmin(rasDataNan)
@@ -451,7 +579,8 @@ def computeRaterStats(rasterPath:os.path):
     vals,counts = np.unique(rasDataNan, return_counts=True)
     index = np.argmax(counts)
     rasMode = vals[index]
-    return rasMin, rasMax, rasMean,rasMode, rasSTD, rasNoNaNCont
+    report = {'Minim':rasMin,'Max':rasMax, 'Mean':rasMean , 'Mode':rasMode , 'STD':rasSTD, 'Valids Count':rasNoNaNCont}
+    return report 
 
 def computeRasterValuePercent(rasterPath, value:int=1)-> float:
     '''
@@ -463,7 +592,39 @@ def computeRasterValuePercent(rasterPath, value:int=1)-> float:
     rasDataNan = replaceRastNoDataWithNan(rasterPath)
     rasNoNaNCont = np.count_nonzero(rasDataNan != np.nan)
     valuCont = np.count_nonzero(rasDataNan == value)
-    return (valuCont/rasNoNaNCont)*100
+    percent = (valuCont/rasNoNaNCont)*100
+    print(f"Computed percent : {percent}")
+    abs = absolute_value(percent)
+    print(f"Computed abs : {abs}")
+    return abs
+
+def replace_negative_values(raster_path, fillWith:float = 0.0):
+    '''
+    This function takes a path to a raster image as input and returns a new raster image with no negative values.
+    The function reads the input raster using rasterio, replaces all negative values with <fillWith: default = 0>, and writes the updated data to a new raster file.
+    @illWith: float : defaul=0.0  ## You can adapt this value to your needs. 
+    '''
+    # Open the file with rasterio
+    with rio.open(raster_path) as src:
+        # Read the raster data
+        data = src.read()
+        # Replace negative values with 0
+        data[data < 0] = fillWith
+        # Create a new raster file with the updated data
+        new_raster_path = addSubstringToName(raster_path,"_no_negative")
+        with rio.open(
+            new_raster_path,
+            "w",
+            driver="GTiff",
+            width=src.width,
+            height=src.height,
+            count=1,
+            dtype=data.dtype,
+            crs=src.crs,
+            transform=src.transform,
+        ) as dst:
+            dst.write(data)
+    return new_raster_path
 
 ###########################
 ####   PCRaster Tools  ####
@@ -852,8 +1013,9 @@ def dc_extraction(cfg: DictConfig, args:dict=None)-> str:
 
 ## LocalPaths and global variables: to be adapted to your needs ##
 currentDirectory = os.getcwd()
-wbt = WhiteboxTools()
+wbt = WhiteboxTools()  ## Need to create an instanace on WhiteBoxTools to call the functions.
 wbt.set_working_dir(currentDirectory)
+print(f"Current dir  {currentDirectory}")
 wbt.set_verbose_mode(True)
 wbt.set_compress_rasters(True) # compress the rasters map. Just ones in the code is needed
 
@@ -863,12 +1025,14 @@ class WbT_dtmTransformer():
      This class contain some functions to generate geomorphological and hydrological features from DEM.
     Functions are based on WhiteBoxTools and Rasterio libraries. For optimal functionality DTM’s most be high resolution, ideally Lidar derived  1m or < 2m. 
     '''
-    def __init__(self, workingDir:str = None) -> None:
-        if (workingDir is not None and os.path.isdir(workingDir)): # Creates output dir if it does not already exist 
-            self.workingDir = workingDir
-            wbt.set_working_dir(workingDir)
-        print(f"Working dir at: {self.workingDir}")    
+    def __init__(self, workingDir: None) -> None:
         
+        
+        if workingDir is not None: # Creates output dir if it does not already exist 
+            wbt.set_working_dir(workingDir)
+            self.workingDir = wbt.get_working_dir()
+            print(f"White Box Tools working dir: {self.workingDir}")
+
     def fixNoDataAndfillDTM(self, inDTMName, eraseIntermediateRasters = False)-> os.path:
         '''
         Ref:   https://www.whiteboxgeo.com/manual/wbt_book/available_tools/hydrological_analysis.html#filldepressions
@@ -1041,7 +1205,7 @@ class WbT_dtmTransformer():
         return output
 
     def get_WorkingDir(self):
-        return str(self.workingDir)
+        return wbt.get_working_dir()
     
     def set_WorkingDir(self,NewWDir):
         wbt.set_working_dir(NewWDir)
@@ -1095,6 +1259,7 @@ class generalRasterTools():
             method= resampleMethod, 
             callback=default_callback
             )
+    
     def mosaikAndResamplingFromCSV(self,csvName, outputResolution: int, csvColumn:str, clearTransitDir = True):
         '''
         Just to make things easier, this function download from *csv with list of dtm_url,
@@ -1261,3 +1426,5 @@ def downloadTailsToLocalDir(tail_URL_NamesList, localPath):
         download_url(url, confirmedLocalPath)
     print(f"Tails downloaded to: {confirmedLocalPath}")
 
+def absolute_value(x):
+    return x if x >= 0 else -x

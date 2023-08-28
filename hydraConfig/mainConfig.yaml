@@ -1,0 +1,9 @@
+
+
+cdemPath : C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\QC_Quebec\QC_Quebec.tif
+SRDEMPath : C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\QC_Quebec\SRDEM_x2_Scaled_8m_QC_Quebec.tif
+
+
+WbTools_work_dir : None # If non, the WbT working dir will be set to the input <cdemPath> directory. 
+
+# NOTE: All outputs will be registered in the <WbTools_work_dir> 
