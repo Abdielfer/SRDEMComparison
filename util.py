@@ -266,7 +266,9 @@ def reporSResDEMComparison(cfg: DictConfig):
                 Compute Min, Man, Mean, STD, Mode and the NoNaNCont. Compare the histograms.
 
         - River network visual comparison:
-                Compute strahler order (up to 5th order) and main streams (up to 3rd order). Create maps (Vector) with overlaps of both networks for visual inspection. 
+                Compute strahler order (up to 5th order) and main streams (up to 3rd order). For this, thresholds are setting for each level like 25% of max flow accumulation for 5th order and 
+                10% of max flow accumulation for 3rd order. The percent is used for thresholding, based on the fact that every basin is different in shape, size and relieve. 
+                Create maps (Vector) with overlaps of both networks for visual inspection. 
             --??? Can we compute IoU to evaluate the river net similarity? 
     '''
     in_cdem = cfg['cdemPath']
@@ -340,6 +342,14 @@ def reporSResDEMComparison(cfg: DictConfig):
         # Compute Flow accumulation and Flow accumulation's stats on Filled cdem
     FAcc_cdem = WbT.d8_flow_accumulation(cdem_Filled, valueType="catchment area")
     FAcc_cdem_Stats = computeRaterStats(FAcc_cdem)
+    strahOrdeThresholt_cdem_5th = 0.25*FAcc_cdem_Stats['Max']
+    river5th_cdemName = addSubstringToName(in_cdem,'_river5thOrder')
+    riverNet5th_cdem = WbT.extractStreamNetwork(FAcc_cdem,river5th_cdemName,strahOrdeThresholt_cdem_5th)
+    
+    strahOrdeThresholt_cdem_3rd = 0.1*FAcc_cdem_Stats['Max']
+    river3rd_cdemName = addSubstringToName(in_cdem,'_river3rdOrder')
+    riverNet3rd_cdem = WbT.extractStreamNetwork(FAcc_cdem,river3rd_cdemName,strahOrdeThresholt_cdem_3rd)
+    
     update_logs({"Flow accumulation stats from cdem: ": FAcc_cdem_Stats})
         # Compute Flow accumulation and Flow accumulation's stats on Filled sr_cdem
     FAcc_sr_cdem = WbT.d8_flow_accumulation(sr_dem_Filled, valueType="catchment area")  # 
@@ -555,6 +565,7 @@ class WbT_dtmTransformer():
             esri_pntr=False, 
             callback=default_callback
             )
+        return output
     
     def d8_flow_accumulation(self, inFilledDTMName, valueType:str = 'cells'):
         '''
@@ -631,7 +642,33 @@ class WbT_dtmTransformer():
             callback=default_callback
         )
         return output
-
+    
+    def extractStreamNetwork(FAcc, output, threshold):
+        '''
+        @FlowAccumulation: Flow accumulation raster.
+        @output: Output file path.
+        @Threshold: The threshol to determine whethed a cell is staring a river or notr. See ref:
+            https://www.whiteboxgeo.com/manual/wbt_book/available_tools/stream_network_analysis.html#ExtractStreams
+        '''
+        wbt.extract_streams(
+            FAcc, 
+            output, 
+            threshold, 
+            zero_background=False, 
+            callback=default_callback
+        )
+        return output
+    
+    def rasterToVector(streams, d8_pointer, outVector):
+        wbt.raster_streams_to_vector(
+            streams, 
+            d8_pointer, 
+            outVector, 
+            esri_pntr=False, 
+            callback=default_callback
+        )
+        return outVector
+    
     def computeSlope(self,inDTMName):
         outSlope = addSubstringToName(inDTMName,'_Slope')
         wbt.slope(inDTMName,
