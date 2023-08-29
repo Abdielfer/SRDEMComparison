@@ -406,9 +406,6 @@ def reporSResDEMComparison(cfg: DictConfig):
     WbT.rasterStreamToVector(river5th_sr_cdem, d8Pionter_sr_dem)
     
     garbageList.append(d8Pionter_sr_dem)
-
-    print(garbageList)
-
     plt.show()
 
 #######################
