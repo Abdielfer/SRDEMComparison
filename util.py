@@ -220,6 +220,9 @@ def reshape_as_raster(arr):
     '''
     return np.transpose(arr, [2, 0, 1])
 
+def readRasterAsArry(rasterPath):
+   return gdal_array.LoadFile(rasterPath)
+
 def plotHistComparison(DEM1,DEM2,title:str='', bins:int = 50):
     # Reding raster. 
     dataReCHaped = np.reshape(readRasterAsArry(DEM1),(1,-1))
@@ -254,12 +257,12 @@ def reporSResDEMComparison(cfg: DictConfig):
                 Compute Min, Man, Mean, STD, Mode and the NoNaNCont. Compare the histograms. 
         
         - Filled area comparison: 
-                Fill the dems depressions and pits with WhangAndLiu algorithms. Compute the differnet between the original dem <ex. cdem> and the filled dem <ex. cdem_filled>. Compute the percentage of transformed ares on each dem (cdem_16m and srdem_8m). Compare the percentage of transformed areas to evaluate the inpact of super resolution algorith in the input dem.         
+                Fill the dems depressions and pits with WhangAndLiu algorithms. Compute the differnet between the original dem <ex. cdem> and the filled dem <ex. cdem_filled>. Compute the percentage of transformed cells on each dem raster(cdem_16m and srdem_8m). Helps to valuate the inpact of super resolution algorith in the input dem.         
 
         - Slope statistics' summary:
                 Compute Min, Man, Mean, STD, Mode and the NoNaNCont. Compare the histograms. 
 
-        - Flow Accumulation summary:
+        - Flow Accumulation statistics' summary:
                 Compute Min, Man, Mean, STD, Mode and the NoNaNCont. Compare the histograms.
 
         - River network visual comparison:
@@ -268,13 +271,12 @@ def reporSResDEMComparison(cfg: DictConfig):
     '''
     in_cdem = cfg['cdemPath']
     in_sr_dem = cfg['SRDEMPath']
+    
     ## Replace negative values. 
     cdem = replace_negative_values(in_cdem)
     sr_dem = replace_negative_values(in_sr_dem)
 
-
-    print(F"True or False : {cfg['WbTools_work_dir'] is None}")
-    ## Inicialize WhiteBoxTools
+    ## Inicialize WhiteBoxTools working directory
     if  cfg['WbTools_work_dir'] == 'None':
         perentPath,_,_ = get_parenPath_name_ext(cdem)
         WbTools_wDir = perentPath
@@ -296,8 +298,8 @@ def reporSResDEMComparison(cfg: DictConfig):
     
     ##______ Filled area comparison: Compute mean, std, mode, max and min. Compare the histograms."
         #____Fill the DEMs with WhangAndLiu algorithms from WhiteBoxTools
-    cdem_Filled = WbT.fixNoDataAndfillDTM(cdem)
-    sr_dem_Filled = WbT.fixNoDataAndfillDTM(sr_dem)
+    cdem_Filled = replace_negative_values(WbT.fixNoDataAndfillDTM(cdem))
+    sr_dem_Filled = replace_negative_values(WbT.fixNoDataAndfillDTM(sr_dem))
         #___ Compute and log percent of transformed areas. 
             ########  cdem
     cdem_statement = str("'"+cdem_Filled+"'"+'-'+"'"+cdem+"' > 0.05") # Remouve some noice because of aproximations with -0.05
@@ -305,7 +307,7 @@ def reporSResDEMComparison(cfg: DictConfig):
     cdem_Transformations_binary = WbT.rasterCalculator(cdem_transformations,cdem_statement)
     cdem_Transformation_percent = computeRasterValuePercent(cdem_Transformations_binary)
     update_logs({"Depretions an pit percent in cdem ": cdem_Transformation_percent})
-            ########  cdem
+            ########  sr_cdem
     sr_cdem_statement = str("'"+sr_dem_Filled+"'"+' - '+"'"+sr_dem+"' > 0.05") # Remouve some noice because of aproximations with -0.05
     sr_cdem_transformations = addSubstringToName(sr_dem,'_TransformedArea')
     sr_cdem_Transformations_binary = WbT.rasterCalculator(sr_cdem_transformations,sr_cdem_statement)
@@ -320,7 +322,6 @@ def reporSResDEMComparison(cfg: DictConfig):
     update_logs({"sr_dem_Filled elevation stats  ": srdemFilledElevStats})
         # plot elevation histogram of filled dems.
     plotHistComparison(cdem_Filled,sr_dem_Filled,title='Elevation comparison after filling the dems: cdem_16m vs srdem_8m')
-
 
     ##______ Slope statistics: Compute mean, std, mode, max and min. Compare slope histograms."
         # Compute Slope and Slope stats
@@ -337,13 +338,15 @@ def reporSResDEMComparison(cfg: DictConfig):
     
     ##______ Flow Accumulation statistics: Compute mean, std, mode, max and min. Compare slope histograms."
         # Compute Flow accumulation and Flow accumulation's stats on Filled cdem
-    FAcc_cdem = WbT.d8_flow_accumulation(cdem_Filled)
+    FAcc_cdem = WbT.d8_flow_accumulation(cdem_Filled, valueType="catchment area")
     FAcc_cdem_Stats = computeRaterStats(FAcc_cdem)
     update_logs({"Flow accumulation stats from cdem: ": FAcc_cdem_Stats})
         # Compute Flow accumulation and Flow accumulation's stats on Filled sr_cdem
-    FAcc_sr_cdem = WbT.d8_flow_accumulation(sr_dem_Filled)
+    FAcc_sr_cdem = WbT.d8_flow_accumulation(sr_dem_Filled, valueType="catchment area")  # 
     FAcc_sr_cdem_Stats = computeRaterStats(FAcc_sr_cdem)
     update_logs({"Flow accumulation stats from sr_cdem: ": FAcc_sr_cdem_Stats})
+
+    cdem_strahOrder = WbT.StrahlerOrder()
 
     plt.show()
 
@@ -508,7 +511,6 @@ class WbT_dtmTransformer():
         @OUTPUT: DTM <filled_ inDTMName> Corrected DTM with wang_and_liu method. 
         '''
         dtmNoDataValueSetted = addSubstringToName(inDTMName,'_NoDataOK')
-        
         wbt.set_nodata_value(
             inDTMName, 
             dtmNoDataValueSetted, 
@@ -554,12 +556,16 @@ class WbT_dtmTransformer():
             callback=default_callback
             )
     
-    def d8_flow_accumulation(self, inFilledDTMName):
+    def d8_flow_accumulation(self, inFilledDTMName, valueType:str = 'cells'):
+        '''
+        @valueType: Type of contributing area calculation. 
+            @valueType Options: one of  (default), 'catchment area', and 'specific contributing area'.
+        '''
         d8FAccOutputName = addSubstringToName(inFilledDTMName,"_d8fllowAcc" ) 
         wbt.d8_flow_accumulation(
             inFilledDTMName, 
             d8FAccOutputName, 
-            out_type="cells", 
+            out_type = valueType, 
             log=False, 
             clip=False, 
             pntr=False, 
@@ -613,6 +619,17 @@ class WbT_dtmTransformer():
             pntr=True, 
             callback=default_callback
             )
+        return output
+
+    def StrahlerOrder(self, d8_pntr, streams, output):
+        wbt.strahler_stream_order(
+            d8_pntr, 
+            streams, 
+            output, 
+            esri_pntr=False, 
+            zero_background=False, 
+            callback=default_callback
+        )
         return output
 
     def computeSlope(self,inDTMName):
