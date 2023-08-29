@@ -271,12 +271,19 @@ def reporSResDEMComparison(cfg: DictConfig):
                 Create maps (Vector) with overlaps of both networks for visual inspection. 
             --??? Can we compute IoU to evaluate the river net similarity? 
     '''
+    ## Inputs
     in_cdem = cfg['cdemPath']
     in_sr_dem = cfg['SRDEMPath']
-    
+    strahOrdThreshold_5th = 30000
+    strahOrdThreshold_3rd = 10000
+    garbageList = []
+
     ## Replace negative values. 
     cdem = replace_negative_values(in_cdem)
     sr_dem = replace_negative_values(in_sr_dem)
+    
+    garbageList.append(cdem)
+    garbageList.append(sr_dem)
 
     ## Inicialize WhiteBoxTools working directory
     if  cfg['WbTools_work_dir'] == 'None':
@@ -302,21 +309,30 @@ def reporSResDEMComparison(cfg: DictConfig):
         #____Fill the DEMs with WhangAndLiu algorithms from WhiteBoxTools
     cdem_Filled = replace_negative_values(WbT.fixNoDataAndfillDTM(cdem))
     sr_dem_Filled = replace_negative_values(WbT.fixNoDataAndfillDTM(sr_dem))
+
+    garbageList.append(cdem_Filled) 
+    garbageList.append(sr_dem_Filled) 
+
         #___ Compute and log percent of transformed areas. 
             ########  cdem
     cdem_statement = str("'"+cdem_Filled+"'"+'-'+"'"+cdem+"' > 0.05") # Remouve some noice because of aproximations with -0.05
-    cdem_transformations = addSubstringToName(cdem,'_TransformedArea')
+    cdem_transformations = addSubstringToName(in_cdem,'_TransformedArea')
     cdem_Transformations_binary = WbT.rasterCalculator(cdem_transformations,cdem_statement)
     cdem_Transformation_percent = computeRasterValuePercent(cdem_Transformations_binary)
     update_logs({"Depretions an pit percent in cdem ": cdem_Transformation_percent})
+
+    garbageList.append(cdem_Transformations_binary)
+
             ########  sr_cdem
     sr_cdem_statement = str("'"+sr_dem_Filled+"'"+' - '+"'"+sr_dem+"' > 0.05") # Remouve some noice because of aproximations with -0.05
-    sr_cdem_transformations = addSubstringToName(sr_dem,'_TransformedArea')
+    sr_cdem_transformations = addSubstringToName(in_sr_dem,'_TransformedArea')
     sr_cdem_Transformations_binary = WbT.rasterCalculator(sr_cdem_transformations,sr_cdem_statement)
     sr_cdem_Transformation_percent = computeRasterValuePercent(sr_cdem_Transformations_binary)
     update_logs({"Depretions an pit percent in sr_cdem ": sr_cdem_Transformation_percent})
 
-   ##______ Elevations tatistics AFTER filling : Compute mean, std, mode, max and min. Compare elevation histograms."
+    garbageList.append(sr_cdem_Transformations_binary)
+
+   ##______ Elevations statistics AFTER filling : Compute mean, std, mode, max and min. Compare elevation histograms."
     cdemFilledElevStat = computeRaterStats(cdem_Filled)
     srdemFilledElevStats = computeRaterStats(sr_dem_Filled)
         # Log Elevation Stats.
@@ -331,6 +347,10 @@ def reporSResDEMComparison(cfg: DictConfig):
     cdemSlopStats = computeRaterStats(cdemSlope)
     sr_demSlope = WbT.computeSlope(sr_dem_Filled)
     sr_demSlopeStats  = computeRaterStats(sr_demSlope)
+    
+    garbageList.append(cdemSlope)
+    garbageList.append(sr_demSlope)
+
         # Log Slope Stats.
     update_logs({"cdem slope stat ": cdemSlopStats})
     update_logs({"sr_dem slope stat  ": sr_demSlopeStats})
@@ -338,25 +358,56 @@ def reporSResDEMComparison(cfg: DictConfig):
     print("### >>>> Preparing plot......")
     plotHistComparison(cdemSlope,sr_demSlope,title='Slope comparison: cdem_16m vs srdem_8m')
     
-    ##______ Flow Accumulation statistics: Compute mean, std, mode, max and min. Compare slope histograms."
-        # Compute Flow accumulation and Flow accumulation's stats on Filled cdem
+    ### Flow routine: Flow accumulation, d8_pointer, stream network raster, stream network vector:  
+    
+        ##______ cdem Flow routine.
+            # Compute Flow accumulation and Flow accumulation's stats on Filled cdem.
+            # Flow Accumulation statistics: Compute mean, std, mode, max and min. Compare slope histograms."
     FAcc_cdem = WbT.d8_flow_accumulation(cdem_Filled, valueType="catchment area")
     FAcc_cdem_Stats = computeRaterStats(FAcc_cdem)
-    strahOrdeThresholt_cdem_5th = 0.25*FAcc_cdem_Stats['Max']
+    
+    garbageList.append(FAcc_cdem)
+
+            # River net for 5th and 3dr ostrahler orders. 
+    
     river5th_cdemName = addSubstringToName(in_cdem,'_river5thOrder')
-    riverNet5th_cdem = WbT.extractStreamNetwork(FAcc_cdem,river5th_cdemName,strahOrdeThresholt_cdem_5th)
+    river5th_cdem = WbT.extractStreamNetwork(FAcc_cdem,river5th_cdemName,strahOrdThreshold_5th)
     
-    strahOrdeThresholt_cdem_3rd = 0.1*FAcc_cdem_Stats['Max']
     river3rd_cdemName = addSubstringToName(in_cdem,'_river3rdOrder')
-    riverNet3rd_cdem = WbT.extractStreamNetwork(FAcc_cdem,river3rd_cdemName,strahOrdeThresholt_cdem_3rd)
+    WbT.extractStreamNetwork(FAcc_cdem,river3rd_cdemName,strahOrdThreshold_3rd)
+    update_logs({"Flow accumulation stats from cdem: ": FAcc_cdem_Stats})  
+
+    garbageList.append(river5th_cdem)
+             
+            #_ River network vector computed from the 5th Strahler order river network.
+    d8Pionter_cdem = WbT.d8FPointerRasterCalculation(cdem_Filled)
+    WbT.rasterStreamToVector(river5th_cdem,d8Pionter_cdem)
     
-    update_logs({"Flow accumulation stats from cdem: ": FAcc_cdem_Stats})
-        # Compute Flow accumulation and Flow accumulation's stats on Filled sr_cdem
+    garbageList.append(d8Pionter_cdem)
+
+         ##______ sr_cdem Flow routine.
+            # Compute Flow accumulation and Flow accumulation's stats on Filled sr_cdem.
+            # Flow Accumulation statistics: Compute mean, std, mode, max and min. Compare slope histograms."
     FAcc_sr_cdem = WbT.d8_flow_accumulation(sr_dem_Filled, valueType="catchment area")  # 
     FAcc_sr_cdem_Stats = computeRaterStats(FAcc_sr_cdem)
+
+    river5th_sr_cdemName = addSubstringToName(in_sr_dem,'_river5thOrder')
+    river5th_sr_cdem = WbT.extractStreamNetwork(FAcc_sr_cdem,river5th_sr_cdemName,strahOrdThreshold_5th)
+    
+    river3rd_sr_cdemName = addSubstringToName(in_sr_dem,'_river3rdOrder')
+    WbT.extractStreamNetwork(FAcc_sr_cdem,river3rd_sr_cdemName,strahOrdThreshold_3rd)
     update_logs({"Flow accumulation stats from sr_cdem: ": FAcc_sr_cdem_Stats})
 
-    cdem_strahOrder = WbT.StrahlerOrder()
+    garbageList.append(FAcc_sr_cdem)
+    garbageList.append(river5th_sr_cdem)
+
+            #_ River network vector.
+    d8Pionter_sr_dem = WbT.d8FPointerRasterCalculation(sr_dem_Filled)
+    WbT.rasterStreamToVector(river5th_sr_cdem, d8Pionter_sr_dem)
+    
+    garbageList.append(d8Pionter_sr_dem)
+
+    print(garbageList)
 
     plt.show()
 
@@ -374,7 +425,7 @@ def readRasterWithRasterio(rasterPath:os.path) -> tuple[np.array, dict]:
     inRaster = rio.open(rasterPath, mode="r")
     profile = inRaster.profile
     rasterData = inRaster.read()
-    print(f"raster data shape in ReadRaster : {rasterData.shape}")
+    # print(f"raster data shape in ReadRaster : {rasterData.shape}")
     return rasterData, profile
 
 def createRaster(savePath:os.path, data:np.array, profile, noData:int = None):
@@ -463,7 +514,7 @@ def replace_negative_values(raster_path, fillWith:float = 0.0):
         # Replace negative values with 0
         data[data < 0] = fillWith
         # Create a new raster file with the updated data
-        new_raster_path = addSubstringToName(raster_path,"_no_negative")
+        new_raster_path = addSubstringToName(raster_path,"_NoNegative")
         with rio.open(
             new_raster_path,
             "w",
@@ -552,7 +603,7 @@ class WbT_dtmTransformer():
                 print("There was an error removing intermediate results : \n {error}")
         return output
 
-    def d8FPointerRasterCalculation(self, inFilledDTMName):
+    def d8FPointerRasterCalculation(self,inFilledDTMName):
         '''
         @argument:
          @inFilledDTMName: DTM without spurious point ar depression.  
@@ -643,7 +694,7 @@ class WbT_dtmTransformer():
         )
         return output
     
-    def extractStreamNetwork(FAcc, output, threshold):
+    def extractStreamNetwork(self, FAcc, output, threshold):
         '''
         @FlowAccumulation: Flow accumulation raster.
         @output: Output file path.
@@ -659,11 +710,19 @@ class WbT_dtmTransformer():
         )
         return output
     
-    def rasterToVector(streams, d8_pointer, outVector):
+    def rasterStreamToVector(self, streams, d8_pointer, outVector:str= None):
+        '''
+        @streams: Stream network in raster format
+        @d8_pointer: d8_pointer computed with WbT.d8FPointerRasterCalculation
+        @uotVector (Optional): output vector name. If <None>, it'll be created internally. 
+        '''
+        if outVector != None: output = outVector
+        else: output= addSubstringToName(streams,"_vect")
+        print(f"Sheck-in on resterStreamTovector output name: {output}")
         wbt.raster_streams_to_vector(
             streams, 
             d8_pointer, 
-            outVector, 
+            output, 
             esri_pntr=False, 
             callback=default_callback
         )
