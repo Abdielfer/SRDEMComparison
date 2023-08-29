@@ -1,0 +1,17 @@
+name: srdemEnv
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - numpy
+  - rasterio
+  - dask
+  - geopandas
+  - shapely
+  - pydantic
+  - omegaconf
+  - hydra-core
+  - torchgeo
+  - whitebox_tools
+  - qgis
+

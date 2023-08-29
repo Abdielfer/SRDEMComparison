@@ -2,26 +2,18 @@ import os, ntpath
 import glob
 import pathlib
 import shutil
-from time import strftime
-from typing import Tuple
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import torch
 import rasterio as rio
 from rasterio.plot import show_hist
 from datetime import datetime
-from whitebox.whitebox_tools import WhiteboxTools, default_callback
-import whitebox_workflows as wbw   
-from torchgeo.datasets.utils import download_url
+from whitebox.whitebox_tools import WhiteboxTools, default_callback  
 from osgeo import gdal,ogr, osr
 from osgeo import gdal_array
 from osgeo.gdalconst import *
-import pcraster as pcr
-from pcraster import *
 from omegaconf import DictConfig, OmegaConf
 import hydra
-from hydra.utils import instantiate
 import logging 
 
 ### General applications ##
@@ -86,6 +78,14 @@ def splitFilenameAndExtention(file_path):
     extention = fpath.suffix
     name = fpath.stem
     return name, extention 
+
+def replaceExtention(inPath,newExt: str)->os.path :
+    '''
+    Just remember to add the poin to the new ext -> '.map'
+    '''
+    dir,fileName = ntpath.split(inPath)
+    _,actualExt = ntpath.splitext(fileName)
+    return os.path.join(dir,ntpath.basename(inPath).replace(actualExt,newExt))
 
 def replaceExtention(inPath,newExt: str)->os.path :
     '''
@@ -236,7 +236,7 @@ def plotHistComparison(DEM1,DEM2,title:str='', bins:int = 50):
     fig.tight_layout()
     # plt.show()
     
-def reporSResDEMComparison(cfg: DictConfig):
+def reportSResDEMComparison(cfg: DictConfig):
     ''', logName:str
     The goal of this function is to create a report of comparison, between cdem and the DEM enhanced with Super Resolution algorithms. 
     
@@ -275,7 +275,7 @@ def reporSResDEMComparison(cfg: DictConfig):
     in_cdem = cfg['cdemPath']
     in_sr_dem = cfg['SRDEMPath']
     strahOrdThreshold_5th = 30000
-    strahOrdThreshold_3rd = 10000
+    strahOrdThreshold_3rd = 300000
     garbageList = []
 
     ## Replace negative values. 
@@ -321,16 +321,12 @@ def reporSResDEMComparison(cfg: DictConfig):
     cdem_Transformation_percent = computeRasterValuePercent(cdem_Transformations_binary)
     update_logs({"Depretions an pit percent in cdem ": cdem_Transformation_percent})
 
-    garbageList.append(cdem_Transformations_binary)
-
             ########  sr_cdem
     sr_cdem_statement = str("'"+sr_dem_Filled+"'"+' - '+"'"+sr_dem+"' > 0.05") # Remouve some noice because of aproximations with -0.05
     sr_cdem_transformations = addSubstringToName(in_sr_dem,'_TransformedArea')
     sr_cdem_Transformations_binary = WbT.rasterCalculator(sr_cdem_transformations,sr_cdem_statement)
     sr_cdem_Transformation_percent = computeRasterValuePercent(sr_cdem_Transformations_binary)
     update_logs({"Depretions an pit percent in sr_cdem ": sr_cdem_Transformation_percent})
-
-    garbageList.append(sr_cdem_Transformations_binary)
 
    ##______ Elevations statistics AFTER filling : Compute mean, std, mode, max and min. Compare elevation histograms."
     cdemFilledElevStat = computeRaterStats(cdem_Filled)
@@ -348,8 +344,8 @@ def reporSResDEMComparison(cfg: DictConfig):
     sr_demSlope = WbT.computeSlope(sr_dem_Filled)
     sr_demSlopeStats  = computeRaterStats(sr_demSlope)
     
-    garbageList.append(cdemSlope)
-    garbageList.append(sr_demSlope)
+    # garbageList.append(cdemSlope)
+    # garbageList.append(sr_demSlope)
 
         # Log Slope Stats.
     update_logs({"cdem slope stat ": cdemSlopStats})
@@ -366,22 +362,22 @@ def reporSResDEMComparison(cfg: DictConfig):
     FAcc_cdem = WbT.d8_flow_accumulation(cdem_Filled, valueType="catchment area")
     FAcc_cdem_Stats = computeRaterStats(FAcc_cdem)
     
-    garbageList.append(FAcc_cdem)
+    # garbageList.append(FAcc_cdem)
 
             # River net for 5th and 3dr ostrahler orders. 
     
     river5th_cdemName = addSubstringToName(in_cdem,'_river5thOrder')
-    river5th_cdem = WbT.extractStreamNetwork(FAcc_cdem,river5th_cdemName,strahOrdThreshold_5th)
+    WbT.extractStreamNetwork(FAcc_cdem,river5th_cdemName,strahOrdThreshold_5th)
     
     river3rd_cdemName = addSubstringToName(in_cdem,'_river3rdOrder')
-    WbT.extractStreamNetwork(FAcc_cdem,river3rd_cdemName,strahOrdThreshold_3rd)
+    river3rd_cdem = WbT.extractStreamNetwork(FAcc_cdem,river3rd_cdemName,strahOrdThreshold_3rd)
     update_logs({"Flow accumulation stats from cdem: ": FAcc_cdem_Stats})  
 
-    garbageList.append(river5th_cdem)
+    garbageList.append(river3rd_cdem)
              
-            #_ River network vector computed from the 5th Strahler order river network.
+            #_ River network vector computed from the 3rd Strahler order river network.
     d8Pionter_cdem = WbT.d8FPointerRasterCalculation(cdem_Filled)
-    WbT.rasterStreamToVector(river5th_cdem,d8Pionter_cdem)
+    WbT.rasterStreamToVector(river3rd_cdem,d8Pionter_cdem)
     
     garbageList.append(d8Pionter_cdem)
 
@@ -392,18 +388,18 @@ def reporSResDEMComparison(cfg: DictConfig):
     FAcc_sr_cdem_Stats = computeRaterStats(FAcc_sr_cdem)
 
     river5th_sr_cdemName = addSubstringToName(in_sr_dem,'_river5thOrder')
-    river5th_sr_cdem = WbT.extractStreamNetwork(FAcc_sr_cdem,river5th_sr_cdemName,strahOrdThreshold_5th)
+    WbT.extractStreamNetwork(FAcc_sr_cdem,river5th_sr_cdemName,strahOrdThreshold_5th)
     
     river3rd_sr_cdemName = addSubstringToName(in_sr_dem,'_river3rdOrder')
-    WbT.extractStreamNetwork(FAcc_sr_cdem,river3rd_sr_cdemName,strahOrdThreshold_3rd)
+    river3rd_sr_cdem = WbT.extractStreamNetwork(FAcc_sr_cdem,river3rd_sr_cdemName,strahOrdThreshold_3rd)
     update_logs({"Flow accumulation stats from sr_cdem: ": FAcc_sr_cdem_Stats})
 
     garbageList.append(FAcc_sr_cdem)
-    garbageList.append(river5th_sr_cdem)
+    garbageList.append(river3rd_sr_cdem)
 
-            #_ River network vector.
+            #_ River network vector computed from the 3rd Strahler order river network.
     d8Pionter_sr_dem = WbT.d8FPointerRasterCalculation(sr_dem_Filled)
-    WbT.rasterStreamToVector(river5th_sr_cdem, d8Pionter_sr_dem)
+    WbT.rasterStreamToVector(river3rd_sr_cdem, d8Pionter_sr_dem)
     
     garbageList.append(d8Pionter_sr_dem)
     plt.show()
@@ -714,7 +710,7 @@ class WbT_dtmTransformer():
         @uotVector (Optional): output vector name. If <None>, it'll be created internally. 
         '''
         if outVector != None: output = outVector
-        else: output= addSubstringToName(streams,"_vect")
+        else: output= replaceExtention(streams,".shp")
         print(f"Sheck-in on resterStreamTovector output name: {output}")
         wbt.raster_streams_to_vector(
             streams, 
