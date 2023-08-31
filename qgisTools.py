@@ -58,9 +58,10 @@ def overlap_vectors(vector_file1, vector_file2, outPath):
 
     for mapItem in project.mapLayers():
         mapItem = QgsLayoutItemMap(layout)
-        mapItem.setRect(0,0,160,210)
+        mapItem.setRect(0,0,150,0)
         mapItem.setReferencePoint(QgsLayoutItem.UpperLeft)
-        mapItem.attemptMove(QgsLayoutPoint(25,15),useReferencePoint=True)
+        # mapItem.attemptResize(QgsLayoutSize(145,2))
+        mapItem.attemptMove(QgsLayoutPoint(15,15),useReferencePoint=True)
         layout.addLayoutItem(mapItem)
         mapItem.setExtent(extent)
         
@@ -93,19 +94,18 @@ def createCustomLayout(project:QgsProject, name:str = 'My Layout'):
     multiframe2 = QgsLayoutItemHtml(layout)
     multiframe2.setHtml('mf2')
     frame_item = QgsLayoutFrame(layout,multiframe2)
-    frame_item.setRect(100, 60, page.pageSize().width()*0.90,page.pageSize().height()*0.90)
+    frame_item.setRect(20,20, page.pageSize().width()*0.60,page.pageSize().height()*0.90)
     frame_item.setFrameEnabled(True)
     frame_item.setFrameStrokeWidth(QgsLayoutMeasurement(2, QgsUnitTypes.LayoutMillimeters))
     frame_item.setFrameStrokeColor(QColor(0, 0, 0))
     frame_item.setReferencePoint(QgsLayoutItem.UpperLeft)
-    frame_item.attemptMove(QgsLayoutPoint(page.pageSize().width()*0.05,page.pageSize().height()*0.01),useReferencePoint=True)
-    # frame_item.setFrameBackgroundColor(QColor(255, 255, 255))
+    frame_item.attemptMove(QgsLayoutPoint(page.pageSize().width()*0.05,page.pageSize().height()*0.05),useReferencePoint=True)
     layout.addLayoutItem(frame_item)
 
     # Add a legend item to the layout
     legend_item = QgsLayoutItemLegend(layout)
     legend_item.setReferencePoint(QgsLayoutItem.UpperRight)
-    legend_item.attemptResize(QgsLayoutSize(50, 50))
+    legend_item.attemptResize(QgsLayoutSize(50,50))
     legend_item.attemptMove(QgsLayoutPoint(page.pageSize().width()*0.85,page.pageSize().height()*0.01),useReferencePoint=True)
     layout.addLayoutItem(legend_item)
 
