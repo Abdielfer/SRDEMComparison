@@ -259,7 +259,7 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
     The goal of this function is to create a report of comparison, between cdem and the DEM enhanced with Super Resolution algorithms. 
     Inputs: 
     @cfg: DictConfig. Hydra config dictionary containing the path to the DEMs to be compared as <dem_1> and <dem_2>
-    @emptyGarbage: bool: default True. Whether to delete or not all the intermedary results. 
+    @emptyGarbage: bool: default True. Whether to delete or not all the intermediary results. 
 
     
     Data:
@@ -270,19 +270,19 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
 
     Goals: Report some geomorphological measurements to compare the super-Resolution algorithms output with the DEM. 
 
-        The similarity between the DEM and srdem will be evaluated through statistics summary and visual instapection. Since both dems could be not in the same resolution, the comparison is done in terms of percentage and visual inspection. 
+        The similarity between the DEM and srdem will be evaluated through statistics summary and visual instapection. Since both dems could be not in the same resolution, the comparison is made in terms of percentage and visual inspection. 
         
     Measurements of comparison (description): 
 
         - Elevation, slope and Flow Accumulation comparison:
-                statistics' summary , compute Min, Man, Mean, STD, Mode and the NoNaNCont. Compare the histograms shapes. 
+                statistics' summary , compute Min, Man, Mean, STD, Mode and the NoNaNCont. Compare the histogram shapes. 
         
         - Filled area comparison: 
-                Fill the dems depressions and pits with WhangAndLiu algorithms. Compute the differnet between the original dem <ex. srdem> and the filled dem <ex. srdem_filled>. Compute the percentage of transformed cells on each dem raster. 
+                Fill the dems depressions and pits with WhangAndLiu algorithms. Compute the difference between the original dem <ex. srdem> and the filled dem <ex. srdem_filled>. Compute the percentage of transformed cells on each dem raster. 
 
         - River network visual comparison:
                 Compute strahler order (up to 5th order) and main streams (up to 3rd order). For this, thresholds are setting for 5th order and 
-                3rd order (Values can be improved). 
+                3rd order (values can be improved). 
                 Create maps (Vector) with overlaps of both networks for visual inspection.()
     '''
     ## Inputs
@@ -297,26 +297,26 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
     strahOrdThreshold_5th = 30000  # Experimental values 
     strahOrdThreshold_3rd = 300000   # Experimental values 
     
-    ## Inicialize WhiteBoxTools working directory at the parent directory of dem_1.    
+    ## Initialize WhiteBoxTools working directory at the parent directory of dem_1.    
     WbT = WbT_dtmTransformer(parentDirDEM_1) 
-    ## Prepare report loging
+    ## Prepare report logging
     logging.info({"WBTools working dir ": WbT.get_WorkingDir()})
 
-    ## Replace negative values, to avoid errors. Negative alevation can be considered as outlayers. 
+    ## Replace negative values, to avoid errors. Negative elevation can be considered as outliers. 
     dem_1 = replace_negative_values(dem_1_path)  
     dem_2 = replace_negative_values(dem_2_path)
     
     garbageList.append(dem_1)
     garbageList.append(dem_2)
 
-    ##______ Elevations tatistics before filling : Compute mean, std, mode, max and min. Compare elevation histograms."
+    ##______ Elevation statistics before filling : Compute mean, std, mode, max and min. Compare elevation histograms."
     dem_1_ElevStats = computeRaterStats(dem_1)
     dem_2_ElevStats = computeRaterStats(dem_2)
         # Log Elevation Stats.
-    update_logs({"{dem1_Name}elevation stats befor filling: ": dem_1_ElevStats})
-    update_logs({"{dem2_Name} elevation stats befor filling: ": dem_2_ElevStats})
+    update_logs({f"{dem1_Name} elevation stats before filling:": dem_1_ElevStats})
+    update_logs({f"{dem2_Name} elevation stats before filling: ": dem_2_ElevStats})
         # plot elevation histogram
-    plotHistComparison(dem_1,dem_2,title='Elevation comparison: {dem1_Name} vs {dem2_Name}')
+    plotHistComparison(dem_1,dem_2,title=f' Elevation comparison: {dem1_Name} vs {dem2_Name}')
     
     ##______ Filled area comparison: Compute mean, std, mode, max and min. Compare the histograms."
         #____Fill the DEMs with WhangAndLiu algorithms from WhiteBoxTools
@@ -328,27 +328,27 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
 
         #___ Compute and log percent of transformed areas. 
             ########  dem_1
-    dem_1_statement = str("'"+dem_1_Filled+"'"+'-'+"'"+dem_1+"' > 0.05") # Remouve some noice because of aproximations with -0.05
+    dem_1_statement = str("'"+dem_1_Filled+"'"+'-'+"'"+dem_1+"' > 0.05") # Remove some noise because of approximations with -0.05
     dem_1_transformations_path = addSubstringToName(dem_1_path,'_TransformedArea')
     dem_1_Transformations_binary = WbT.rasterCalculator(dem_1_transformations_path,dem_1_statement)
     dem_1_Transformation_percent = computeRasterValuePercent(dem_1_Transformations_binary)
-    update_logs({"Depretions and pit percent in dem_1 ": dem_1_Transformation_percent})
+    update_logs({f"Depressions and pit percent in {dem_1} ": dem_1_Transformation_percent})
 
             ########  dem_2
-    dem_2_statement = str("'"+dem_2_Filled+"'"+' - '+"'"+dem_2+"' > 0.05") # Remouve some noice because of aproximations with -0.05
+    dem_2_statement = str("'"+dem_2_Filled+"'"+' - '+"'"+dem_2+"' > 0.05") # Remove some noise because of approximations with -0.05
     dem_2_transformations_path = addSubstringToName(dem_2_path,'_TransformedArea')
     dem_2_Transformations_binary = WbT.rasterCalculator(dem_2_transformations_path,dem_2_statement)
     dem_2_Transformation_percent = computeRasterValuePercent(dem_2_Transformations_binary)
-    update_logs({"Depretions and pit percent in dem_2 ": dem_2_Transformation_percent})
+    update_logs({f"Depressions and pit percent in {dem_2} ": dem_2_Transformation_percent})
 
    ##______ Elevations statistics AFTER filling : Compute mean, std, mode, max and min. Compare elevation histograms."
     dem_1_FilledElevStats = computeRaterStats(dem_1_Filled)
     dem_2_FilledElevStats = computeRaterStats(dem_2_Filled)
         # Log Elevation Stats.
-    update_logs({"{dem1_Name} Filled elevation stats  ": dem_1_FilledElevStats})
-    update_logs({"{dem2_Name} Filled elevation stats  ": dem_2_FilledElevStats})
+    update_logs({f"{dem1_Name} Filled elevation stats ": dem_1_FilledElevStats})
+    update_logs({f"{dem2_Name} Filled elevation stats ": dem_2_FilledElevStats})
         # plot elevation histogram of filled dems.
-    plotHistComparison(dem_1_Filled,dem_2_Filled,title='Elevation comparison after filling the dems: {dem1_Name} vs {dem2_Name}')
+    plotHistComparison(dem_1_Filled,dem_2_Filled,title=f"Elevation comparison after filling the dems: {dem1_Name} vs {dem2_Name}")
 
     ##______ Slope statistics: Compute mean, std, mode, max and min. Compare slope histograms."
         # Compute Slope and Slope stats
@@ -361,27 +361,27 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
     # garbageList.append(sr_demSlope)
 
         # Log Slope Stats.
-    update_logs({"{dem1_Name} slope stat ": dem_1_SlopStats})
-    update_logs({"{dem2_Name} slope stat  ": dem_2_SlopeStats})
+    update_logs({f"{dem1_Name} slope stat ": dem_1_SlopStats})
+    update_logs({f"{dem2_Name} slope stat  ": dem_2_SlopeStats})
         # plot elevation histogram
     print("### >>>> Preparing plot......")
-    plotHistComparison(dem_1_Slope,dem_2_Slope,title= 'Slope comparison: {dem1_Name} vs {dem2_Name}')
+    plotHistComparison(dem_1_Slope,dem_2_Slope,title = f'Slope comparison: {dem1_Name} vs {dem2_Name}')
     
-    ### Flow routine: Flow accumulation, d8_pointer, stream network raster, stream network vector:  
+    ### Flow routine: Flow accumulation, d8_pointer, stream network raster, stream network vectors:  
     
         ##______dem_1 Flow routine.
-            # Compute Flow accumulation and Flow accumulation's stats on Filled cdem.
+            # Compute Flow accumulation and Flow accumulation stat on filled cdem.
             # Flow Accumulation statistics: Compute mean, std, mode, max and min. Compare slope histograms."
     dem_1_FAcc = WbT.d8_flow_accumulation(dem_1_Filled, valueType="catchment area")
     dem_1_FAcc_Stats = computeRaterStats(dem_1_FAcc)
     
-            # River net for 5th and 3dr ostrahler orders. 
+            # River net for 5th and 3rd ostrahler orders. 
     river5th_cdemName = addSubstringToName(dem_1_path,'_river5thOrder')
     WbT.extractStreamNetwork(dem_1_FAcc,river5th_cdemName,strahOrdThreshold_5th)
     
     river3rd_dem_1_Name = addSubstringToName(dem_1_path,'_river3rdOrder')
     WbT.extractStreamNetwork(dem_1_FAcc,river3rd_dem_1_Name,strahOrdThreshold_3rd)
-    update_logs({"Flow accumulation stats from {dem1_Name}: ": dem_1_FAcc_Stats})  
+    update_logs({f"Flow accumulation stats from {dem1_Name}: ": dem_1_FAcc_Stats})  
 
     garbageList.append(river3rd_dem_1_Name)
              
@@ -390,7 +390,7 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
     river3rd_dem_1_shape = WbT.rasterStreamToVector(river3rd_dem_1_Name,d8Pionter_dem_1)
     
          ##______ dem_2 Flow routine.
-            # Compute Flow accumulation and Flow accumulation's stats on Filled dem_2.
+            # Compute Flow accumulation and Flow accumulation stats on filled dem_2.
             # Flow Accumulation statistics: Compute mean, std, mode, max and min. Compare slope histograms."
     
     FAcc_dem_2 = WbT.d8_flow_accumulation(dem_2_Filled, valueType="catchment area")  # 
@@ -401,7 +401,7 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
     
     river3rd_dem_2_Name = addSubstringToName(dem_2_path,'_river3rdOrder')
     WbT.extractStreamNetwork(FAcc_dem_2,river3rd_dem_2_Name,strahOrdThreshold_3rd)
-    update_logs({"Flow accumulation stats from $dem2_Name: ": FAcc_dem_2_Stats})
+    update_logs({f"Flow accumulation stats from {dem2_Name}: ": FAcc_dem_2_Stats})
 
     garbageList.append(FAcc_dem_2)
     garbageList.append(river3rd_dem_2_Name)
@@ -412,12 +412,12 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
     
     
     plt.show()
-    # Print a layOut with both 3th orther river networks vecors. 
+    # Print a layOut with both 3rd order river networks vectors. 
     QT.overlap_vectors(river3rd_dem_1_shape,river3rd_dem_2_shape,layOutPath)   
 
     if emptyGarbage is True:
         for f in garbageList:
-            print(f"READY to remouve : {f}")
+            print(f"READY to remove : {f}")
             os.remove(f)
     
 
@@ -432,7 +432,7 @@ def readRasterWithRasterio(rasterPath:os.path) -> tuple[np.array, dict]:
     Read a raster with Rasterio.
     return:
      Raster data as np.array
-     Raster.profile: dictionary with all rater information
+     Raster.profile: dictionary with all raster information
     '''
     inRaster = rio.open(rasterPath, mode="r")
     profile = inRaster.profile
@@ -442,7 +442,7 @@ def readRasterWithRasterio(rasterPath:os.path) -> tuple[np.array, dict]:
 
 def createRaster(savePath:os.path, data:np.array, profile, noData:int = None):
     '''
-    parameter: 
+    Parameter: 
     @savePath: Most contain the file name ex.: *name.tif.
     @data: np.array with shape (bands,H,W)
     '''
@@ -768,7 +768,7 @@ class WbT_dtmTransformer():
         '''
         For details see Whitebox Tools references at:
         https://www.whiteboxgeo.com/manual/wbt_book/available_tools/mathand_stats_tools.html?#RasterHistogram
-        @return: An *.html file with the computed histogram. The file is autoloaded. 
+        @return: An *.html file with the computed histogram. The file is autoloader. 
         '''
         output = addSubstringToName(inRaster,'_histogram')
         output = replaceExtention(output, '.html')
@@ -784,7 +784,7 @@ class WbT_dtmTransformer():
         For details see Whitebox Tools references at:
         https://www.whiteboxgeo.com/manual/wbt_book/available_tools/mathand_stats_tools.html#RasterCalculator
         
-        @statement : string of desired opperation. Raster must be cuoted inside the statement str. ex "'raster1.tif' - 'rater2.tif'"
+        @statement : string of desired operation. Raster must be quoted inside the statement str. ex "'raster1.tif' - 'rater2.tif'"
         '''
         wbt.raster_calculator(
             output, 
@@ -805,7 +805,7 @@ def setWBTWorkingDir(workingDir):
 
 def checkTifExtention(fileName):
     if ".tif" not in fileName:
-        newFileName = input("enter a valid file name with the '.tif' extention")
+        newFileName = input("enter a valid file name with the '.tif' extension")
         return newFileName
     else:
         return fileName
@@ -813,7 +813,7 @@ def checkTifExtention(fileName):
 def downloadTailsToLocalDir(tail_URL_NamesList, localPath):
     '''
     Import the tails in the url <tail_URL_NamesList>, 
-        to the local ydirectory defined in <localPath>.
+        to the local directory defined in <localPath>.
     '''
     confirmedLocalPath = ensureDirectory(localPath)
     for url in tail_URL_NamesList:
