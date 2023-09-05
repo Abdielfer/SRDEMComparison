@@ -1,9 +1,8 @@
 
 
-cdemPath : C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\QC_Quebec\QC_Quebec.tif
-SRDEMPath : C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\QC_Quebec\SRDEM_x2_Scaled_8m_QC_Quebec.tif
+dem_1 : C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\HamiltonNiagara\StudyCase\ON_HamiltonNiagara_8m_HRDEM.tif
+dem_2 : C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\HamiltonNiagara\StudyCase\ON_HamiltonNiagara_8m_SRes.tif
+layOutOutputPath : C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\HamiltonNiagara\StudyCase\lyoutName.png
 
-
-WbTools_work_dir : None # If non, the WbT working dir will be set to the input <cdemPath> directory. 
-
+WbTools_work_dir : None # If non, the WbT working dir will be set to the input <dem_1Path> directory. 
 # NOTE: All outputs will be registered in the <WbTools_work_dir> 
