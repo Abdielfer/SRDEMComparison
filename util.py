@@ -242,13 +242,15 @@ def readRasterAsArry(rasterPath):
    return gdal_array.LoadFile(rasterPath)
 
 def plotHistComparison(DEM1,DEM2,title:str='', bins:int = 50):
-    # Reding raster. 
+    _,dem1_Name,_ = get_parenPath_name_ext(DEM1)
+    _,dem2_Name,_ = get_parenPath_name_ext(DEM2)
+    # Reading raster. 
     dataReCHaped = np.reshape(readRasterAsArry(DEM1),(1,-1))
     dataReCHaped2 = np.reshape(readRasterAsArry(DEM2),(1,-1))
     # Prepare plot
     fig, ax = plt.subplots(1,sharey=True, tight_layout=True)
-    ax.hist(dataReCHaped[0],bins,histtype='step',label=['cdem 16m'])
-    ax.hist(dataReCHaped2[0],bins,histtype='step',label=['srdem 8m'])
+    ax.hist(dataReCHaped[0],bins,histtype='step',label=f"{dem1_Name}")
+    ax.hist(dataReCHaped2[0],bins,histtype='step',label=f"{dem2_Name}")
     ax.legend(prop={'size': 10})
     ax.set_title(title) 
     fig.tight_layout()
@@ -410,7 +412,6 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
     d8Pionter_dem_2 = WbT.d8FPointerRasterCalculation(dem_2_Filled)
     river3rd_dem_2_shape = WbT.rasterStreamToVector(river3rd_dem_2_Name, d8Pionter_dem_2)
     
-    
     plt.show()
     # Print a layOut with both 3rd order river networks vectors. 
     QT.overlap_vectors(river3rd_dem_1_shape,river3rd_dem_2_shape,layOutPath)   
@@ -420,9 +421,6 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
             print(f"READY to remove : {f}")
             os.remove(f)
     
-
-    
-
 #######################
 ### Rasterio Tools  ###
 #######################
