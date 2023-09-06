@@ -31,20 +31,6 @@ class timeit():
         print('runtime: {}'.format(datetime.now() - self.tic))
 
 ### Configurations And file management
-def ensureDirectory(pathToCheck:os.path)->os.path:
-    if not os.path.isdir(pathToCheck): 
-        os.mkdir(pathToCheck)
-        print(f"Confirmed directory at: {pathToCheck} ")
-    return pathToCheck
-
-def relocateFile(inputFilePath, outputFilePath):
-    '''
-    NOTE: @outputFilePath must contain the complete filename
-    Sintax:
-     @shutil.move("path/to/current/file.foo", "path/to/new/destination/for/file.foo")
-    '''
-    shutil.move(inputFilePath, outputFilePath)
-    return True
 
 def clearTransitFolderContent(path:str, filetype = '/*'):
     '''
@@ -233,16 +219,18 @@ def reshape_as_raster(arr):
 def readRasterAsArry(rasterPath):
    return gdal_array.LoadFile(rasterPath)
 
-def plotHistComparison(DEM1,DEM2,title:str='', ax_x_units:str='', bins:int = 50):
+def plotRasterHistComparison(DEM1,DEM2,title:str='', ax_x_units:str='', bins:int = 50):
     _,dem1_Name,_ = get_parenPath_name_ext(DEM1)
     _,dem2_Name,_ = get_parenPath_name_ext(DEM2)
+    dem_1_Array = readRasteReplacingNoDataWithNan(DEM1)
+    dem_2_Array = readRasteReplacingNoDataWithNan(DEM2)
     # Reading raster. 
-    dataReCHaped = np.reshape(readRasterAsArry(DEM1),(1,-1))
-    dataReCHaped2 = np.reshape(readRasterAsArry(DEM2),(1,-1))
+    dataRechaped_1 = np.reshape(dem_1_Array,(1,-1))
+    dataRechaped_2 = np.reshape(dem_2_Array,(1,-1))
     # Prepare plot
     fig, ax = plt.subplots(1,sharey=True, tight_layout=True)
-    ax.hist(dataReCHaped[0],bins,histtype='step',label=f"{dem1_Name}")
-    ax.hist(dataReCHaped2[0],bins,histtype='step',label=f"{dem2_Name}")
+    ax.hist(dataRechaped_1[0],bins,histtype='step',label=f"{dem1_Name}")
+    ax.hist(dataRechaped_2[0],bins,histtype='step',label=f"{dem2_Name}")
     ax.legend(prop={'size': 10})
     ax.set_title(title) 
     fig.tight_layout()
@@ -308,15 +296,15 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
     update_logs({f"{dem1_Name} elevation stats before filling:": dem_1_ElevStats})
     update_logs({f"{dem2_Name} elevation stats before filling: ": dem_2_ElevStats})
         # plot elevation histogram
-    plotHistComparison(dem_1,dem_2,title=f' Elevation comparison: {dem1_Name} vs {dem2_Name}')
+    plotRasterHistComparison(dem_1,dem_2,title=f' Elevation comparison: {dem1_Name} vs {dem2_Name}')
     
     ##______ Filled area comparison: Compute mean, std, mode, max and min. Compare the histograms."
         #____Fill the DEMs with WhangAndLiu algorithms from WhiteBoxTools
     dem_1_Filled = WbT.fixNoDataAndfillDTM(dem_1)
     dem_2_Filled = WbT.fixNoDataAndfillDTM(dem_2)
 
-    garbageList.append(dem_1_Filled) 
-    garbageList.append(dem_2_Filled) 
+    # garbageList.append(dem_1_Filled) 
+    # garbageList.append(dem_2_Filled) 
 
         #___ Compute and log percent of transformed areas. 
             ########  dem_1
@@ -340,7 +328,7 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
     update_logs({f"{dem1_Name} Filled elevation stats ": dem_1_FilledElevStats})
     update_logs({f"{dem2_Name} Filled elevation stats ": dem_2_FilledElevStats})
         # plot elevation histogram of filled dems.
-    plotHistComparison(dem_1_Filled,dem_2_Filled,title=f"Elevation comparison after filling the dems: {dem1_Name} vs {dem2_Name}")
+    plotRasterHistComparison(dem_1_Filled,dem_2_Filled,title=f"Elevation comparison after filling the dems: {dem1_Name} vs {dem2_Name}")
 
     ##______ Slope statistics: Compute mean, std, mode, max and min. Compare slope histograms."
         # Compute Slope and Slope stats
@@ -348,16 +336,16 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
     dem_1_SlopStats = computeRaterStats(dem_1_Slope)
     dem_2_Slope = WbT.computeSlope(dem_2_Filled)
     dem_2_SlopeStats  = computeRaterStats(dem_2_Slope)
-    
-    # garbageList.append(cdemSlope)
-    # garbageList.append(sr_demSlope)
 
+    # garbageList.append(dem_1_Slope)   ## Uncomment to delete at the end
+    # garbageList.append(dem_2_Slope)   ## Uncomment to delete at the end
+ 
         # Log Slope Stats.
     update_logs({f"{dem1_Name} slope stat ": dem_1_SlopStats})
     update_logs({f"{dem2_Name} slope stat  ": dem_2_SlopeStats})
         # plot elevation histogram
     print("### >>>> Preparing plot......")
-    plotHistComparison(dem_1_Slope,dem_2_Slope,title = f'Slope comparison: {dem1_Name} vs {dem2_Name}')
+    plotRasterHistComparison(dem_1_Slope,dem_2_Slope,title = f'Slope comparison: {dem1_Name} vs {dem2_Name}')
     
     ### Flow routine: Flow accumulation, d8_pointer, stream network raster, stream network vectors:  
     
@@ -366,7 +354,8 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
             # Flow Accumulation statistics: Compute mean, std, mode, max and min. Compare slope histograms."
     dem_1_FAcc = WbT.d8_flow_accumulation(dem_1_Filled, valueType="catchment area")
     dem_1_FAcc_Stats = computeRaterStats(dem_1_FAcc)
-    
+    # garbageList.append(dem_1_FAcc)   ## Uncomment to delete at the end
+
             # River net for 5th and 3rd ostrahler orders. 
     river5th_cdemName = addSubstringToName(dem_1,'_river5thOrder')
     WbT.extractStreamNetwork(dem_1_FAcc,river5th_cdemName,strahOrdThreshold_5th)
@@ -378,16 +367,17 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
     garbageList.append(river3rd_dem_1_Name)
              
             #_ River network vector computed from the 3rd Strahler order river network.
-    d8Pionter_dem_1 = WbT.d8FPointerRasterCalculation(dem_1_Filled)
+    # Compute Flow Direction with d8FPointerRasterCalculation()
+    d8Pionter_dem_1 = WbT.d8FPointerRasterCalculation(dem_1_Filled)    # This is the flow direction map
     river3rd_dem_1_shape = WbT.rasterStreamToVector(river3rd_dem_1_Name,d8Pionter_dem_1)
     
          ##______ dem_2 Flow routine.
             # Compute Flow accumulation and Flow accumulation stats on filled dem_2.
             # Flow Accumulation statistics: Compute mean, std, mode, max and min. Compare slope histograms."
-    
     FAcc_dem_2 = WbT.d8_flow_accumulation(dem_2_Filled, valueType="catchment area")  # 
     FAcc_dem_2_Stats = computeRaterStats(FAcc_dem_2)
-
+    # garbageList.append(FAcc_dem_2)   ## Uncomment to delete at the end
+    
     river5th_dem_2_Name = addSubstringToName(dem_2,'_river5thOrder')
     WbT.extractStreamNetwork(FAcc_dem_2,river5th_dem_2_Name,strahOrdThreshold_5th)
     
@@ -399,6 +389,7 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
     garbageList.append(river3rd_dem_2_Name)
 
             #_ River network vector computed from the 3rd Strahler order river network.
+    # Compute Flow Direction with d8FPointerRasterCalculation()
     d8Pionter_dem_2 = WbT.d8FPointerRasterCalculation(dem_2_Filled)
     river3rd_dem_2_shape = WbT.rasterStreamToVector(river3rd_dem_2_Name, d8Pionter_dem_2)
     
@@ -454,16 +445,15 @@ def plotHistogram(raster, CustomTitle:str = None, bins: int=100, bandNumber: int
     else:
         title = f"Histogram of band : {bandNumber}"    
     data,_ = readRasterWithRasterio(raster)
-    
     show_hist(source=data, bins=bins, title= title, 
           histtype='stepfilled', alpha=0.5)
     return True
 
-def replaceRastNoDataWithNan(rasterPath:os.path,extraNoDataVal: float = None)-> np.array:
+def readRasteReplacingNoDataWithNan(rasterPath:os.path,extraNoDataVal: float = None)-> np.array:
     rasterData,profil = readRasterWithRasterio(rasterPath)
     NOData = profil['nodata']
-    rasterDataNan = np.where(((rasterData == NOData)|(rasterData == extraNoDataVal)), np.nan, rasterData) 
-    return rasterDataNan
+    rasterNoDataAsNan = np.where(((rasterData == NOData)|(rasterData == extraNoDataVal)), np.nan, rasterData) 
+    return rasterNoDataAsNan
 
 def computeRaterStats(rasterPath:os.path)-> dict:
     '''
@@ -476,7 +466,7 @@ def computeRaterStats(rasterPath:os.path)-> dict:
     @rasSTD: Raster standard deviation.
     @rasNoNaNCont: Raster count of all valid pixels <NOT NoData>. 
     '''
-    rasDataNan = replaceRastNoDataWithNan(rasterPath)
+    rasDataNan = readRasteReplacingNoDataWithNan(rasterPath)
     rasMin = np.nanmin(rasDataNan)
     rasMax = np.nanmax(rasDataNan)
     rasMean = np.nanmean(rasDataNan)
@@ -496,7 +486,7 @@ def computeRasterValuePercent(rasterPath, value:int=1)-> float:
     @value: Value to verify percent in raster. Default = 1. 
     @return: The computed percent of <value> within the nonNoData values in the input raster.  
     '''
-    rasDataNan = replaceRastNoDataWithNan(rasterPath)
+    rasDataNan = readRasteReplacingNoDataWithNan(rasterPath)
     rasNoNaNCont = np.count_nonzero(rasDataNan != np.nan)
     valuCont = np.count_nonzero(rasDataNan == value)
     return (valuCont/rasNoNaNCont)*100
@@ -556,7 +546,7 @@ class WbT_dtmTransformer():
             self.workingDir = wbt.get_working_dir()
             print(f"White Box Tools working dir: {self.workingDir}")
 
-    def fixNoDataAndfillDTM(self, inDTMName, eraseIntermediateRasters = False)-> os.path:
+    def fixNoDataAndfillDTM(self, inDTMName, eraseIntermediateRasters = True)-> os.path:
         '''
         Ref:   https://www.whiteboxgeo.com/manual/wbt_book/available_tools/hydrological_analysis.html#filldepressions
         To ensure the quality of this process, this method execute several steep in sequence, following the Whitebox’s authors recommendation (For mor info see the above reference).
@@ -571,16 +561,16 @@ class WbT_dtmTransformer():
         @Return: True if all process happened successfully, ERROR messages otherwise. 
         @OUTPUT: DTM <filled_ inDTMName> Corrected DTM with wang_and_liu method. 
         '''
-        dtmNoDataValueSetted = addSubstringToName(inDTMName,'_NoDataOK')
-        wbt.set_nodata_value(
-            inDTMName, 
-            dtmNoDataValueSetted, 
-            back_value=0.0, 
-            callback=default_callback
-            )
+        # dtmNoDataValueSetted = addSubstringToName(inDTMName,'_NoDataOK')
+        # wbt.set_nodata_value(
+        #     inDTMName, 
+        #     dtmNoDataValueSetted, 
+        #     back_value=0.0, 
+        #     callback=default_callback
+        #     )
         dtmMissingDataFilled = addSubstringToName(inDTMName,'_')
         wbt.fill_missing_data(
-            dtmNoDataValueSetted, 
+            inDTMName, 
             dtmMissingDataFilled, 
             filter=11, 
             weight=2.0, 
@@ -597,15 +587,11 @@ class WbT_dtmTransformer():
             )
         if eraseIntermediateRasters:
             try:
-                os.remove(os.path.join(wbt.work_dir,dtmNoDataValueSetted))
+                # os.remove(os.path.join(wbt.work_dir,dtmNoDataValueSetted))
                 os.remove(os.path.join(wbt.work_dir,dtmMissingDataFilled))
             except OSError as error:
                 print("There was an error removing intermediate results : \n {error}")
-        
-        ## Ceaning work environment
-        os.remove(dtmNoDataValueSetted)
-        os.remove(dtmMissingDataFilled)
-        
+              
         return output
 
     def d8FPointerRasterCalculation(self,inFilledDTMName):
