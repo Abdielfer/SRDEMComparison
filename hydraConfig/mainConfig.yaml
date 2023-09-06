@@ -1,6 +1,6 @@
 
-
-dem_1 : C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\HamiltonNiagara\StudyCase\ON_HamiltonNiagara_SRDEM_8m_basin.tif
-dem_2 : C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\HamiltonNiagara\StudyCase\ON_HamiltonNiagara_HRDTM_8m_Basin.tif
-layOutOutputPath : C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\HamiltonNiagara\StudyCase\lyoutName.png
+## Enter the two DEMs path for the comparison and the layout path to print the two river networks. 
+dem_1 : C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\HamiltonNiagara\StudyCase\Niagara_HRDTM_8m.tif
+dem_2 : C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\HamiltonNiagara\StudyCase\Niagara_SRDEM_8m.tif
+layOutOutputPath : C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\HamiltonNiagara\StudyCase\RiverNetworkOverlap.png
 

@@ -219,21 +219,39 @@ def reshape_as_raster(arr):
 def readRasterAsArry(rasterPath):
    return gdal_array.LoadFile(rasterPath)
 
-def plotRasterHistComparison(DEM1,DEM2,title:str='', ax_x_units:str='', bins:int = 50):
+def plotRasterHistComparison(DEM1,DEM2,title:str='', ax_x_units:str='', bins:int = 100, addmax= False):
+    '''
+    
+
+    '''
     _,dem1_Name,_ = get_parenPath_name_ext(DEM1)
     _,dem2_Name,_ = get_parenPath_name_ext(DEM2)
     dem_1_Array = readRasteReplacingNoDataWithNan(DEM1)
     dem_2_Array = readRasteReplacingNoDataWithNan(DEM2)
+    
+    ## If <bins> is a list, add the maximum value to <bins>.  
+    if (addmax and isinstance(bins,list)):
+        bins.append(np.maximum(np.nanmax(dem_1_Array),np.nanmax(dem_2_Array)).astype(int))
+    
     # Reading raster. 
     dataRechaped_1 = np.reshape(dem_1_Array,(1,-1))
     dataRechaped_2 = np.reshape(dem_2_Array,(1,-1))
+    
     # Prepare plot
     fig, ax = plt.subplots(1,sharey=True, tight_layout=True)
-    ax.hist(dataRechaped_1[0],bins,histtype='step',label=f"{dem1_Name}")
-    ax.hist(dataRechaped_2[0],bins,histtype='step',label=f"{dem2_Name}")
-    ax.legend(prop={'size': 10})
-    ax.set_title(title) 
-    fig.tight_layout()
+    ax.hist([dataRechaped_1[0],dataRechaped_2[0]],
+            bins,
+            rwidth=0.8)
+    ax.legend([f"{dem1_Name}",f"{dem2_Name}"], prop={'size': 8})
+    ax.set_title(title)
+    ax.set_xlabel(ax_x_units) 
+    ax.set_ylabel('Frequency')
+   
+    if isinstance(bins,list):
+        plt.xticks(bins)
+        print(bins)
+        plt.gca().set_xticklabels([str(i) for i in bins], minor = True)
+    
     # plt.show()
     
 def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
@@ -288,25 +306,25 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
     ## Prepare report logging
     logging.info({"WBTools working dir ": WbT.get_WorkingDir()})
 
-    ##______ Elevation statistics before filling : Compute mean, std, mode, max and min. Compare elevation histograms."
+    #______ Elevation statistics before filling : Compute mean, std, mode, max and min. Compare elevation histograms."
     dem_1_ElevStats = computeRaterStats(dem_1)
     dem_2_ElevStats = computeRaterStats(dem_2)
     
-        # Log Elevation Stats.
+       # Log Elevation Stats.
     update_logs({f"{dem1_Name} elevation stats before filling:": dem_1_ElevStats})
     update_logs({f"{dem2_Name} elevation stats before filling: ": dem_2_ElevStats})
         # plot elevation histogram
-    plotRasterHistComparison(dem_1,dem_2,title=f' Elevation comparison: {dem1_Name} vs {dem2_Name}')
+    plotRasterHistComparison(dem_1,dem_2,title=f' Elevation comparison: {dem1_Name} vs {dem2_Name}', ax_x_units ='Elevation (m)')
     
-    ##______ Filled area comparison: Compute mean, std, mode, max and min. Compare the histograms."
-        #____Fill the DEMs with WhangAndLiu algorithms from WhiteBoxTools
+    #______ Filled area comparison: Compute mean, std, mode, max and min. Compare the histograms."
+    #______ Fill the DEMs with WhangAndLiu algorithms from WhiteBoxTools
     dem_1_Filled = WbT.fixNoDataAndfillDTM(dem_1)
     dem_2_Filled = WbT.fixNoDataAndfillDTM(dem_2)
 
     # garbageList.append(dem_1_Filled) 
     # garbageList.append(dem_2_Filled) 
 
-        #___ Compute and log percent of transformed areas. 
+    # ___ Compute and log percent of transformed areas. 
             ########  dem_1
     dem_1_statement = str("'"+dem_1_Filled+"'"+'-'+"'"+dem_1+"' > 0.05") # Remove some noise because of approximations with -0.05
     dem_1_transformations_path = addSubstringToName(dem_1,'_TransformedArea')
@@ -328,7 +346,7 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
     update_logs({f"{dem1_Name} Filled elevation stats ": dem_1_FilledElevStats})
     update_logs({f"{dem2_Name} Filled elevation stats ": dem_2_FilledElevStats})
         # plot elevation histogram of filled dems.
-    plotRasterHistComparison(dem_1_Filled,dem_2_Filled,title=f"Elevation comparison after filling the dems: {dem1_Name} vs {dem2_Name}")
+    plotRasterHistComparison(dem_1_Filled,dem_2_Filled,title=f"Elevation comparison after filling the dems: {dem1_Name} vs {dem2_Name}",ax_x_units ='Elevation (m)')
 
     ##______ Slope statistics: Compute mean, std, mode, max and min. Compare slope histograms."
         # Compute Slope and Slope stats
@@ -345,7 +363,7 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
     update_logs({f"{dem2_Name} slope stat  ": dem_2_SlopeStats})
         # plot elevation histogram
     print("### >>>> Preparing plot......")
-    plotRasterHistComparison(dem_1_Slope,dem_2_Slope,title = f'Slope comparison: {dem1_Name} vs {dem2_Name}')
+    plotRasterHistComparison(dem_1_Slope,dem_2_Slope,title = f'Slope comparison: {dem1_Name} vs {dem2_Name}',bins=[0,1,2,4,6,8,10,15,30,45], ax_x_units= 'Slope (%)')
     
     ### Flow routine: Flow accumulation, d8_pointer, stream network raster, stream network vectors:  
     
@@ -392,7 +410,6 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
     # Compute Flow Direction with d8FPointerRasterCalculation()
     d8Pionter_dem_2 = WbT.d8FPointerRasterCalculation(dem_2_Filled)
     river3rd_dem_2_shape = WbT.rasterStreamToVector(river3rd_dem_2_Name, d8Pionter_dem_2)
-    
     plt.show()
     # Print a layOut with both 3rd order river networks vectors. 
     QT.overlap_vectors(river3rd_dem_1_shape,river3rd_dem_2_shape,layOutPath)   
@@ -466,16 +483,19 @@ def computeRaterStats(rasterPath:os.path)-> dict:
     @rasSTD: Raster standard deviation.
     @rasNoNaNCont: Raster count of all valid pixels <NOT NoData>. 
     '''
-    rasDataNan = readRasteReplacingNoDataWithNan(rasterPath)
-    rasMin = np.nanmin(rasDataNan)
-    rasMax = np.nanmax(rasDataNan)
-    rasMean = np.nanmean(rasDataNan)
-    rasSTD = np.nanstd(rasDataNan)
-    rasNoNaNCont = np.count_nonzero(rasDataNan != np.nan)
+    rasNoDataAsNan = readRasteReplacingNoDataWithNan(rasterPath)
+    rasMin = np.nanmin(rasNoDataAsNan)
+    rasMax = np.nanmax(rasNoDataAsNan)
+    rasMean = np.nanmean(rasNoDataAsNan)
+    rasSTD = np.nanstd(rasNoDataAsNan)
+    rasNoNaNCont = np.count_nonzero(rasNoDataAsNan != np.nan)
     # Compute mode
-    vals,counts = np.unique(rasDataNan, return_counts=True)
+    values,counts = np.unique(rasNoDataAsNan, return_counts=True)
+    # remouve Nan index from values and counts.
+    counts = np.delete(counts,np.argwhere(np.isnan(values))[0])
+    values = np.delete(values,np.argwhere(np.isnan(values))[0])
     index = np.argmax(counts)
-    rasMode = vals[index]
+    rasMode = values[index]
     report = {'Minim':rasMin,'Max':rasMax, 'Mean':rasMean , 'Mode':rasMode , 'STD':rasSTD, 'Valids Count':rasNoNaNCont}
     return report 
 
