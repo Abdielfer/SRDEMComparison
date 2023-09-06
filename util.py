@@ -89,14 +89,6 @@ def replaceExtention(inPath,newExt: str)->os.path :
     _,actualExt = ntpath.splitext(fileName)
     return os.path.join(dir,ntpath.basename(inPath).replace(actualExt,newExt))
 
-def replaceExtention(inPath,newExt: str)->os.path :
-    '''
-    Just remember to add the poin to the new ext -> '.map'
-    '''
-    dir,fileName = ntpath.split(inPath)
-    _,actualExt = ntpath.splitext(fileName)
-    return os.path.join(dir,ntpath.basename(inPath).replace(actualExt,newExt))
-
 def get_parenPath_name_ext(filePath):
     '''
     Ex: user/folther/file.txt
@@ -241,7 +233,7 @@ def reshape_as_raster(arr):
 def readRasterAsArry(rasterPath):
    return gdal_array.LoadFile(rasterPath)
 
-def plotHistComparison(DEM1,DEM2,title:str='', bins:int = 50):
+def plotHistComparison(DEM1,DEM2,title:str='', ax_x_units:str='', bins:int = 50):
     _,dem1_Name,_ = get_parenPath_name_ext(DEM1)
     _,dem2_Name,_ = get_parenPath_name_ext(DEM2)
     # Reading raster. 
@@ -258,12 +250,13 @@ def plotHistComparison(DEM1,DEM2,title:str='', bins:int = 50):
     
 def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
     '''
-    The goal of this function is to create a report of comparison, between cdem and the DEM enhanced with Super Resolution algorithms. 
+    The goal of this function is to create a report of comparison, between two DEMs.
+    BOTH DEMs must be in the same folder. ALL outputs will be writen to this folder. You can automaticaly delete all intermediary results of your choice by filling the @emptyGarbage list. 
+    
     Inputs: 
     @cfg: DictConfig. Hydra config dictionary containing the path to the DEMs to be compared as <dem_1> and <dem_2>
     @emptyGarbage: bool: default True. Whether to delete or not all the intermediary results. 
 
-    
     Data:
     The expected data are DEMs. 
         srdem: Super Resolution Algorithm Output. 
@@ -287,33 +280,30 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
                 3rd order (values can be improved). 
                 Create maps (Vector) with overlaps of both networks for visual inspection.()
     '''
+    
     ## Inputs
-    dem_1_path = cfg['dem_1']
-    parentDirDEM_1,dem1_Name,_ = get_parenPath_name_ext(dem_1_path) 
-    dem_2_path = cfg['dem_2']
-    _,dem2_Name,_ = get_parenPath_name_ext(dem_2_path) 
+    dem_1 = cfg['dem_1']
+    parentDirDEM_1,dem1_Name,_ = get_parenPath_name_ext(dem_1) 
+    dem_2 = cfg['dem_2']
+    _,dem2_Name,_ = get_parenPath_name_ext(dem_2) 
     layOutPath = cfg['layOutOutputPath']
 
+    # Collect intermediary results to be deleted at the end.
     garbageList = []
     
     strahOrdThreshold_5th = 30000  # Experimental values 
     strahOrdThreshold_3rd = 300000   # Experimental values 
     
     ## Initialize WhiteBoxTools working directory at the parent directory of dem_1.    
-    WbT = WbT_dtmTransformer(parentDirDEM_1) 
+    WbT = WbT_dtmTransformer(parentDirDEM_1)
+       
     ## Prepare report logging
     logging.info({"WBTools working dir ": WbT.get_WorkingDir()})
-
-    ## Replace negative values, to avoid errors. Negative elevation can be considered as outliers. 
-    dem_1 = replace_negative_values(dem_1_path)  
-    dem_2 = replace_negative_values(dem_2_path)
-    
-    garbageList.append(dem_1)
-    garbageList.append(dem_2)
 
     ##______ Elevation statistics before filling : Compute mean, std, mode, max and min. Compare elevation histograms."
     dem_1_ElevStats = computeRaterStats(dem_1)
     dem_2_ElevStats = computeRaterStats(dem_2)
+    
         # Log Elevation Stats.
     update_logs({f"{dem1_Name} elevation stats before filling:": dem_1_ElevStats})
     update_logs({f"{dem2_Name} elevation stats before filling: ": dem_2_ElevStats})
@@ -322,8 +312,8 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
     
     ##______ Filled area comparison: Compute mean, std, mode, max and min. Compare the histograms."
         #____Fill the DEMs with WhangAndLiu algorithms from WhiteBoxTools
-    dem_1_Filled = replace_negative_values(WbT.fixNoDataAndfillDTM(dem_1))
-    dem_2_Filled = replace_negative_values(WbT.fixNoDataAndfillDTM(dem_2))
+    dem_1_Filled = WbT.fixNoDataAndfillDTM(dem_1)
+    dem_2_Filled = WbT.fixNoDataAndfillDTM(dem_2)
 
     garbageList.append(dem_1_Filled) 
     garbageList.append(dem_2_Filled) 
@@ -331,17 +321,17 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
         #___ Compute and log percent of transformed areas. 
             ########  dem_1
     dem_1_statement = str("'"+dem_1_Filled+"'"+'-'+"'"+dem_1+"' > 0.05") # Remove some noise because of approximations with -0.05
-    dem_1_transformations_path = addSubstringToName(dem_1_path,'_TransformedArea')
+    dem_1_transformations_path = addSubstringToName(dem_1,'_TransformedArea')
     dem_1_Transformations_binary = WbT.rasterCalculator(dem_1_transformations_path,dem_1_statement)
     dem_1_Transformation_percent = computeRasterValuePercent(dem_1_Transformations_binary)
-    update_logs({f"Depressions and pit percent in {dem_1} ": dem_1_Transformation_percent})
+    update_logs({f"Depressions and pit percent in {dem1_Name} ": dem_1_Transformation_percent})
 
             ########  dem_2
     dem_2_statement = str("'"+dem_2_Filled+"'"+' - '+"'"+dem_2+"' > 0.05") # Remove some noise because of approximations with -0.05
-    dem_2_transformations_path = addSubstringToName(dem_2_path,'_TransformedArea')
+    dem_2_transformations_path = addSubstringToName(dem_2,'_TransformedArea')
     dem_2_Transformations_binary = WbT.rasterCalculator(dem_2_transformations_path,dem_2_statement)
     dem_2_Transformation_percent = computeRasterValuePercent(dem_2_Transformations_binary)
-    update_logs({f"Depressions and pit percent in {dem_2} ": dem_2_Transformation_percent})
+    update_logs({f"Depressions and pit percent in {dem2_Name} ": dem_2_Transformation_percent})
 
    ##______ Elevations statistics AFTER filling : Compute mean, std, mode, max and min. Compare elevation histograms."
     dem_1_FilledElevStats = computeRaterStats(dem_1_Filled)
@@ -378,10 +368,10 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
     dem_1_FAcc_Stats = computeRaterStats(dem_1_FAcc)
     
             # River net for 5th and 3rd ostrahler orders. 
-    river5th_cdemName = addSubstringToName(dem_1_path,'_river5thOrder')
+    river5th_cdemName = addSubstringToName(dem_1,'_river5thOrder')
     WbT.extractStreamNetwork(dem_1_FAcc,river5th_cdemName,strahOrdThreshold_5th)
     
-    river3rd_dem_1_Name = addSubstringToName(dem_1_path,'_river3rdOrder')
+    river3rd_dem_1_Name = addSubstringToName(dem_1,'_river3rdOrder')
     WbT.extractStreamNetwork(dem_1_FAcc,river3rd_dem_1_Name,strahOrdThreshold_3rd)
     update_logs({f"Flow accumulation stats from {dem1_Name}: ": dem_1_FAcc_Stats})  
 
@@ -398,10 +388,10 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
     FAcc_dem_2 = WbT.d8_flow_accumulation(dem_2_Filled, valueType="catchment area")  # 
     FAcc_dem_2_Stats = computeRaterStats(FAcc_dem_2)
 
-    river5th_dem_2_Name = addSubstringToName(dem_2_path,'_river5thOrder')
+    river5th_dem_2_Name = addSubstringToName(dem_2,'_river5thOrder')
     WbT.extractStreamNetwork(FAcc_dem_2,river5th_dem_2_Name,strahOrdThreshold_5th)
     
-    river3rd_dem_2_Name = addSubstringToName(dem_2_path,'_river3rdOrder')
+    river3rd_dem_2_Name = addSubstringToName(dem_2,'_river3rdOrder')
     WbT.extractStreamNetwork(FAcc_dem_2,river3rd_dem_2_Name,strahOrdThreshold_3rd)
     update_logs({f"Flow accumulation stats from {dem2_Name}: ": FAcc_dem_2_Stats})
 
@@ -458,7 +448,7 @@ def createRaster(savePath:os.path, data:np.array, profile, noData:int = None):
             print("Created new raster>>>")
     return savePath
    
-def plotHistogram(raster, CustomTitle:str = None, bins: int=50, bandNumber: int = 1):
+def plotHistogram(raster, CustomTitle:str = None, bins: int=100, bandNumber: int = 1):
     if CustomTitle is not None:
         title = CustomTitle
     else:
@@ -511,7 +501,7 @@ def computeRasterValuePercent(rasterPath, value:int=1)-> float:
     valuCont = np.count_nonzero(rasDataNan == value)
     return (valuCont/rasNoNaNCont)*100
 
-def replace_negative_values(raster_path, fillWith:float = 0.0):
+def replace_negative_values(raster_path, fillWith:float = np.nan):
     '''
     This function takes a path to a raster image as input and returns a new raster image with no negative values.
     The function reads the input raster using rasterio, replaces all negative values with <fillWith: default = 0>, and writes the updated data to a new raster file.
@@ -524,7 +514,7 @@ def replace_negative_values(raster_path, fillWith:float = 0.0):
         # Replace negative values with 0
         data[data < 0] = fillWith
         # Create a new raster file with the updated data
-        new_raster_path = addSubstringToName(raster_path,"_NoNegative")
+        new_raster_path = addSubstringToName(raster_path,"_")
         with rio.open(
             new_raster_path,
             "w",
@@ -588,7 +578,7 @@ class WbT_dtmTransformer():
             back_value=0.0, 
             callback=default_callback
             )
-        dtmMissingDataFilled = addSubstringToName(inDTMName,'_MissingDataFilled')
+        dtmMissingDataFilled = addSubstringToName(inDTMName,'_')
         wbt.fill_missing_data(
             dtmNoDataValueSetted, 
             dtmMissingDataFilled, 
@@ -597,7 +587,7 @@ class WbT_dtmTransformer():
             no_edges=True, 
             callback=default_callback
             )
-        output = addSubstringToName(inDTMName,"_filled_WangLiu")
+        output = addSubstringToName(inDTMName,"_fill")  # The DEM is filled with WangAndLiu correction method. 
         wbt.fill_depressions_wang_and_liu(
             dtmMissingDataFilled, 
             output, 
@@ -638,7 +628,7 @@ class WbT_dtmTransformer():
         @valueType: Type of contributing area calculation. 
             @valueType Options: one of  (default), 'catchment area', and 'specific contributing area'.
         '''
-        d8FAccOutputName = addSubstringToName(inFilledDTMName,"_d8fllowAcc" ) 
+        d8FAccOutputName = addSubstringToName(inFilledDTMName,"_d8FAcc" ) 
         wbt.d8_flow_accumulation(
             inFilledDTMName, 
             d8FAccOutputName, 
@@ -800,23 +790,3 @@ class WbT_dtmTransformer():
 # Helpers
 def setWBTWorkingDir(workingDir):
     wbt.set_working_dir(workingDir)
-
-def checkTifExtention(fileName):
-    if ".tif" not in fileName:
-        newFileName = input("enter a valid file name with the '.tif' extension")
-        return newFileName
-    else:
-        return fileName
-
-def downloadTailsToLocalDir(tail_URL_NamesList, localPath):
-    '''
-    Import the tails in the url <tail_URL_NamesList>, 
-        to the local directory defined in <localPath>.
-    '''
-    confirmedLocalPath = ensureDirectory(localPath)
-    for url in tail_URL_NamesList:
-        download_url(url, confirmedLocalPath)
-    print(f"Tails downloaded to: {confirmedLocalPath}")
-
-def absolute_value(x):
-    return x if x >= 0 else -x
