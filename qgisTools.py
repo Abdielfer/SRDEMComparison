@@ -114,7 +114,6 @@ def createCustomLayout(project:QgsProject, name:str = 'My Layout'):
 
 ###  TO BE Tested
 
-# # Import required modules
 # from qgis.core import QgsGeometry, QgsPointXY, QgsVectorLayer, QgsFeature, QgsSymbolLayerRegistry, QgsLineSymbolV2, QgsSimpleLineSymbolLayerV2, QgsMarkerSymbolV2, QgsFillSymbolV2, QgsRendererCategoryV2, QgsCategorizedSymbolRendererV2
 # from PyQt5.QtCore import QSize
 # from PyQt5.QtGui import QColor
@@ -180,6 +179,7 @@ def createCustomLayout(project:QgsProject, name:str = 'My Layout'):
 # vector1 = [0, 0, 10, 10]
 # vector2 = [10, 0, 0, 10]
 # create_image(vector1, vector2)
+
 def splitFilenameAndExtention(file_path):
     '''
     pathlib.Path Options: 

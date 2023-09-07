@@ -32,6 +32,18 @@ class timeit():
 
 ### Configurations And file management
 
+def makePath(str1,str2):
+    return os.path.join(str1,str2)
+
+def removeFile(filePath):
+    try:
+        os.remove(filePath)
+        return True
+    except OSError as error:
+        print(error)
+        print("File path can not be removed")
+        return False
+    
 def clearTransitFolderContent(path:str, filetype = '/*'):
     '''
     NOTE: This well clear dir without removing the parent dir itself. 
