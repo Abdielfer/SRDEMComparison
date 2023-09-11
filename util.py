@@ -378,7 +378,6 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
     plotRasterHistComparison(dem_1_Slope,dem_2_Slope,title = f'Slope comparison: {dem1_Name} vs {dem2_Name}',bins=[0,1,2,4,6,8,10,15,30,45], ax_x_units= 'Slope (%)')
     
     ### Flow routine: Flow accumulation, d8_pointer, stream network raster, stream network vectors:  
-    
         ##______dem_1 Flow routine.
             # Compute Flow accumulation and Flow accumulation stat on filled cdem.
             # Flow Accumulation statistics: Compute mean, std, mode, max and min. Compare slope histograms."
@@ -721,7 +720,7 @@ class WbT_dtmTransformer():
         '''
         @FlowAccumulation: Flow accumulation raster.
         @output: Output file path.
-        @Threshold: The threshol to determine whethed a cell is staring a river or notr. See ref:
+        @Threshold: The threshol to determine whethed a cell is starting a river or not. See ref:
             https://www.whiteboxgeo.com/manual/wbt_book/available_tools/stream_network_analysis.html#ExtractStreams
         '''
         wbt.extract_streams(
