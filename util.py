@@ -35,6 +35,12 @@ class timeit():
 def makePath(str1,str2):
     return os.path.join(str1,str2)
 
+
+def createTransitFolder(parent_dir_path, folderName:str = 'TransitDir'):
+    path = os.path.join(parent_dir_path, folderName)
+    ensureDirectory(path)
+    return path
+
 def removeFile(filePath):
     try:
         os.remove(filePath)
