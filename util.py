@@ -16,7 +16,7 @@ from osgeo.gdalconst import *
 from omegaconf import DictConfig, OmegaConf
 import hydra
 import logging 
-
+from torchgeo.datasets.utils import download_url
 
 ### General applications ##
 class timeit(): 
@@ -32,9 +32,14 @@ class timeit():
 
 ### Configurations And file management
 
+def ensureDirectory(pathToCheck:os.path)->os.path:
+    if not os.path.isdir(pathToCheck): 
+        os.mkdir(pathToCheck)
+        print(f"Confirmed directory at: {pathToCheck} ")
+    return pathToCheck
+
 def makePath(str1,str2):
     return os.path.join(str1,str2)
-
 
 def createTransitFolder(parent_dir_path, folderName:str = 'TransitDir'):
     path = os.path.join(parent_dir_path, folderName)
@@ -63,6 +68,25 @@ def clearTransitFolderContent(path:str, filetype = '/*'):
         os.remove(f)
     return True
 
+def createListFromCSVColumn(csv_file_location, col_idx, delim:str =','):  
+    '''
+    @return: list from <col_id> in <csv_file_location>.
+    Argument:
+    @csv_file_location: full path file location and name.
+    @col_idx : number or str(name)of the desired collumn to extrac info from (Consider index 0 <default> for the first column, if no names are assigned in csv header.)
+    @delim: Delimiter to pass to pd.read_csv() function. Default = ','.
+    '''       
+    x=[]
+    df = pd.read_csv(csv_file_location,index_col=None, delimiter = delim)
+    if isinstance(col_idx,str):  
+        colIndex = df.columns.get_loc(col_idx)
+    elif isinstance(col_idx,int): 
+        colIndex = col_idx
+    fin = df.shape[0] ## rows count.
+    for i in range(0,fin): 
+        x.append(df.iloc[i,colIndex])
+    return x
+ 
 def createListFromExelColumn(excell_file_location,Sheet_id:str, col_idx:str):  
     '''
     @return: list from <col_id> in <excell_file_location>.
@@ -149,6 +173,39 @@ def updateDict(dic:dict, args:dict)->dict:
         if k in dic.keys():
             outDic[k]= args[k]
     return outDic
+
+def listFreeFilesInDirByExt(cwd:str, ext = '.tif'):
+    '''
+    @ext = *.tif by default.
+    NOTE:  THIS function list only files that are directly into <cwd> path. 
+    '''
+    cwd = os.path.abspath(cwd)
+    print(f"Current working directory: {cwd}")
+    file_list = []
+    for (root, dirs, file) in os.walk(cwd):
+        for f in file:
+            print(f"File: {f}")
+            _,_,extent = get_parenPath_name_ext(f)
+            if extent == ext:
+                file_list.append(f)
+    return file_list
+
+def listFreeFilesInDirByExt_fullPath(cwd:str, ext = '.csv') -> list:
+    '''
+    @ext = *.csv by default.
+    NOTE:  THIS function list only files that are directly into <cwd> path. 
+    '''
+    cwd = os.path.abspath(cwd)
+    # print(f"Current working directory: {cwd}")
+    file_list = []
+    for (root,_, file) in os.walk(cwd, followlinks=True):
+        for f in file:
+            # print(f"Current f: {f}")
+            _,extent = splitFilenameAndExtention(f)
+            # print(f"Current extent: {extent}")
+            if ext == extent:
+                file_list.append(os.path.join(root,f))
+    return file_list
 
 class logg_Manager:
     '''
@@ -576,8 +633,6 @@ class WbT_dtmTransformer():
     Functions are based on WhiteBoxTools and Rasterio libraries. For optimal functionality DTM’s most be high resolution, ideally Lidar derived  1m or < 2m. 
     '''
     def __init__(self, workingDir: None) -> None:
-        
-        
         if workingDir is not None: # Creates output dir if it does not already exist 
             wbt.set_working_dir(workingDir)
             self.workingDir = wbt.get_working_dir()
@@ -810,6 +865,212 @@ class WbT_dtmTransformer():
     def set_WorkingDir(self,NewWDir):
         wbt.set_working_dir(NewWDir)
 
+
+class generalRasterTools():
+    def __init__(self, workingDir):
+        if os.path.isdir(workingDir): # Creates output dir, if it does not already exist. 
+            self.workingDir = workingDir
+            wbt.set_working_dir(workingDir)
+        else:
+            self.workingDir = input('Enter working directory')
+            ensureDirectory(self.workingDir)
+            wbt.set_working_dir(self.workingDir)
+        # print('Current working directory : ', self.workingDir)
+    
+    def computeMosaic(self, outpouFileName:str):
+        '''
+        Compute wbt.mosaic across all .tif files into the workingDir.  
+        @return: Return True if mosaic succeed, False otherwise. Result is saved to wbt.work_dir. 
+        Argument
+        @outpouFileName: The output file name. IMPORTANT: include the "*.tif" extention.
+        '''
+
+        outFilePathAndName = os.path.join(wbt.work_dir,outpouFileName)
+        if wbt.mosaic(
+            output=outFilePathAndName, 
+            method = "nn"  # Calls mosaic tool with nearest neighbour as the resampling method ("nn")
+            ) != 0:
+            print('ERROR running mosaic')  # Non-zero returns indicate an error.
+            return False 
+        return True
+
+    def rasterResampler(sefl,inputRaster, outputRaster, outputCellSize:int,resampleMethod = 'bilinear'):
+        '''
+        wbt.Resampler ref: https://www.whiteboxgeo.com/manual/wbt_book/available_tools/image_processing_tools.html#Resample
+        NOTE: It performes Mosaic if several inputs are provided, in addition to resampling. See refference for details. 
+        @arguments: inputRaster, resampledRaster, outputCellSize:int, resampleMethod:str
+        Resampling method; options include 'nn' (nearest neighbour), 'bilinear', and 'cc' (cubic convolution)
+        '''
+        outputFilePathAndName = os.path.join(wbt.work_dir,outputRaster)
+        if isinstance(inputRaster, list):
+            inputs = sefl.prepareInputForResampler(inputRaster)
+        else: 
+            inputs = inputRaster        
+        wbt.resample(
+            inputs, 
+            outputFilePathAndName, 
+            cell_size=outputCellSize, 
+            base=None, 
+            method= resampleMethod, 
+            callback=default_callback
+            )
+        return outputFilePathAndName
+     
+    def mosaikAndResamplingFromCSV(self,csvName, outputResolution:int, csvColumn:str, clearTransitDir = True):
+        '''
+        Just to make things easier, this function download from *csv with list of dtm_url,
+         do mosaik and resampling at once. 
+        NOTE: If only one DTM is provided, mosaik is not applyed. 
+        Steps:
+        1- create TransitFolder
+        2- For *.csv in the nameList:
+             - create destination Folder with csv name. 
+             - import DTM into TransitFolder
+             - mosaik DTM in TransitFoldes if more than one is downloaded.
+             - resample mosaik to <outputResolution> argument
+             - clear TransitFolder
+        '''
+        ## Preparing for download
+        transitFolderPath = createTransitFolder(self.workingDir)
+        sourcePath_dtm_ftp = os.path.join(self.workingDir, csvName) 
+        name,ext = splitFilenameAndExtention(csvName)
+        print('filename :', name, ' ext: ',ext)
+        destinationFolder = makePath(self.workingDir,name)
+        ensureDirectory(destinationFolder)
+        dtmFtpList = createListFromCSVColumn(sourcePath_dtm_ftp,csvColumn)
+        
+        ## Download tails to transit folder
+        downloadTailsToLocalDir(dtmFtpList,transitFolderPath)
+        savedWDir = self.workingDir
+        resamplerOutput = makePath(destinationFolder,(name +'_'+str(outputResolution)+'m.tif'))
+        resamplerOutput_CRS_OK = makePath(destinationFolder,(name +'_'+str(outputResolution)+'m.tif'))
+        setWBTWorkingDir(transitFolderPath)
+        
+        ## recover all downloaded *.tif files path
+        dtmTail = listFreeFilesInDirByExt(transitFolderPath, ext = '.tif')
+        crs,_ = self.get_CRSAndTranslation_GTIFF(dtmFtpList[0])
+        
+        ## Merging tiles and resampling
+        self.rasterResampler(dtmTail,resamplerOutput,outputResolution)
+        self.set_CRS_GTIF(resamplerOutput, resamplerOutput_CRS_OK, crs)
+        setWBTWorkingDir(savedWDir)
+        
+        ## Celaning transit folder. 
+        if clearTransitDir: 
+            clearTransitFolderContent(transitFolderPath)
+
+    def rasterToVectorLine(sefl, inputRaster, outputVector):
+        wbt.raster_to_vector_lines(
+            inputRaster, 
+            outputVector, 
+            callback=default_callback
+            )
+
+    def rasterVisibility_index(sefl, inputDTM, outputVisIdx, resFator = 2.0):
+        '''
+        Both, input and output are raster. 
+        '''
+        wbt.visibility_index(
+                inputDTM, 
+                outputVisIdx, 
+                height=2.0, 
+                res_factor=resFator, 
+                callback=default_callback
+                )           
+
+    def gaussianFilter(sefl, input, output, sigma = 0.75):
+        '''
+        input@: kernelSize = integer or tupel(x,y). If integer, kernel is square, othewise, is a (with=x,hight=y) rectagle. 
+        '''
+        wbt.gaussian_filter(
+        input, 
+        output, 
+        sigma = sigma, 
+        callback=default_callback
+        )
+    
+    def prepareInputForResampler(self,nameList):
+        inputStr = ''   
+        if len(nameList)>1:
+            for i in range(len(nameList)-1):
+                inputStr += nameList[i]+';'
+            inputStr += nameList[-1]
+            return inputStr
+        return str(*nameList)
+
+    def get_CRSAndTranslation_GTIFF(self,input_gtif):
+        '''
+         @input_gtif = "path/to/input.tif"
+         NOTE: Accept URL as input. 
+        '''
+        with rio.open(input_gtif) as src:
+        # Extract spatial metadata
+            input_crs = src.crs
+            input_gtif  = src.transform
+            src.close()
+            return input_crs, input_gtif  
+
+    def set_CRS_GTIF(self,input_gtif, output_tif, in_crs):
+        arr, kwds = self.separate_array_profile(input_gtif)
+        kwds.update(crs=in_crs)
+        with rio.open(output_tif,'w', **kwds) as output:
+            output.write(arr)
+        return output_tif
+
+    def set_Tanslation_GTIF(self, input_gtif, output_tif, in_gt):
+        arr, kwds = self.separate_array_profile(input_gtif)
+        kwds.update(transform=in_gt)
+        with rio.open(output_tif,'w', **kwds) as output:
+            output.write(arr)
+        return output_tif
+
+    def separate_array_profile(self, input_gtif):
+        with rio.open(input_gtif) as src: 
+            profile = src.profile
+            print('This is a profile :', profile)
+            arr = src.read()
+            src.close() 
+        return arr, profile
+
+    def ensureTranslationResolution(self, rioTransf:rio.Affine, desiredResolution: int):
+        '''
+        NOTE: For now it works for square pixels ONLY!!
+        Compare the translation values for X and Y transformation with @desiredResolution. 
+        If different, the values are replaced by the desired one. 
+        return:
+         @rioAfine:rio.profiles with the new resolution
+        '''
+        if rioTransf[0] != desiredResolution:
+            newTrans = rio.Affine(desiredResolution,
+                                rioTransf[1],
+                                rioTransf[2],
+                                rioTransf[3],
+                                -1*desiredResolution,
+                                rioTransf[5])
+        return newTrans
+
+    def get_rasterResolution(self, inRaster):
+        with rio.open(inRaster) as src:
+            profile = src.profile
+            transformation = profile['transform']
+            res = int(transformation[0])
+        return res
+    
+    def get_WorkingDir(self):
+        return str(self.workingDir)
+
+
 # Helpers
 def setWBTWorkingDir(workingDir):
     wbt.set_working_dir(workingDir)
+
+
+def downloadTailsToLocalDir(tail_URL_NamesList, localPath):
+    '''
+    Import the tails in the url <tail_URL_NamesList>, 
+        to the local ydirectory defined in <localPath>.
+    '''
+    confirmedLocalPath = ensureDirectory(localPath)
+    for url in tail_URL_NamesList:
+        download_url(url, confirmedLocalPath)
+    print(f"Tails downloaded to: {confirmedLocalPath}")

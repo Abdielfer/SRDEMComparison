@@ -7,7 +7,8 @@ import util as U
 
 @hydra.main(version_base=None, config_path=f"hydraConfig", config_name="mainConfig")
 def main(cfg: DictConfig):
-    U.reportSResDEMComparison(cfg)
+
+    downloader = U.Wb
     
 if __name__ == "__main__":
     with U.timeit():
