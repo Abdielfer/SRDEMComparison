@@ -5,6 +5,7 @@ dem_2 : C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\HamiltonNiagara\Stud
 layOutOutputPath : C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\HamiltonNiagara\StudyCase\RiverNetworkOverlap.png
 
 # Enter the path to the csv file contining the list of urls to download. It can contain one or more url. If multiples tiles are downloaded, the algorith will produce a mosaic with the specified <out_resolution>.
-csv_demList : 
+csv_demList : ''
+csvColumn : ''
 out_resolution : 8
 wporking_dir : .\data

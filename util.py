@@ -703,6 +703,8 @@ class WbT_dtmTransformer():
     
     def d8_flow_accumulation(self, inFilledDTMName, valueType:str = 'cells'):
         '''
+        Ref: https://www.whiteboxgeo.com/manual/wbt_book/available_tools/hydrological_analysis.html#dinfflowaccumulation  
+
         @valueType: Type of contributing area calculation. 
             @valueType Options: one of  (default), 'catchment area', and 'specific contributing area'.
         '''
@@ -740,31 +742,6 @@ class WbT_dtmTransformer():
             callback=default_callback
         )
         print("watershedConputing Done")
-
-    def DInfFlowCalculation(self, inD8Pointer, log = False):
-        ''' 
-        Compute DInfinity flow accumulation algorithm.
-        Ref: https://www.whiteboxgeo.com/manual/wbt_book/available_tools/hydrological_analysis.html#dinfflowaccumulation  
-        We keep the DEFAULT SETTING  from source, which compute "Specific Contributing Area". 
-        See ref for the description of more output’s options. 
-        @Argument: 
-            @inD8Pointer: D8-Pointer raster
-            @log (Boolean): Apply Log-transformation on the output raster
-        @Output: 
-            DInfFlowAcculation map. 
-        '''
-        output = addSubstringToName(inD8Pointer,"_dInfFAcc")
-        wbt.d_inf_flow_accumulation(
-            inD8Pointer, 
-            output, 
-            out_type="Specific Contributing Area", 
-            threshold=None, 
-            log=log, 
-            clip=False, 
-            pntr=True, 
-            callback=default_callback
-            )
-        return output
 
     def StrahlerOrder(self, d8_pntr, streams, output):
         wbt.strahler_stream_order(
@@ -868,14 +845,10 @@ class WbT_dtmTransformer():
 
 class generalRasterTools():
     def __init__(self, workingDir):
-        if os.path.isdir(workingDir): # Creates output dir, if it does not already exist. 
-            self.workingDir = workingDir
+        if workingDir is not None: # Creates output dir if it does not already exist 
             wbt.set_working_dir(workingDir)
-        else:
-            self.workingDir = input('Enter working directory')
-            ensureDirectory(self.workingDir)
-            wbt.set_working_dir(self.workingDir)
-        # print('Current working directory : ', self.workingDir)
+            self.workingDir = wbt.get_working_dir()
+            print(f"White Box Tools working dir: {self.workingDir}")
     
     def computeMosaic(self, outpouFileName:str):
         '''
@@ -1059,11 +1032,9 @@ class generalRasterTools():
     def get_WorkingDir(self):
         return str(self.workingDir)
 
-
 # Helpers
 def setWBTWorkingDir(workingDir):
     wbt.set_working_dir(workingDir)
-
 
 def downloadTailsToLocalDir(tail_URL_NamesList, localPath):
     '''
