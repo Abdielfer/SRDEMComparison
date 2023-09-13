@@ -1,6 +1,6 @@
 import pathlib
 import qgis 
-from qgis.gui import QgsMapCanvas, QgsLayerTreeMapCanvasBridge
+# from qgis.gui import QgsMapCanvas, QgsLayerTreeMapCanvasBridge
 from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtGui import QColor
 from qgis.core import (

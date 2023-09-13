@@ -1,0 +1,7 @@
+dem_1: C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\HamiltonNiagara\StudyCase\Niagara_HRDTM_8m.tif
+dem_2: C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\HamiltonNiagara\StudyCase\Niagara_SRDEM_8m.tif
+layOutOutputPath: C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\HamiltonNiagara\StudyCase\RiverNetworkOverlap.png
+csv_demList: ''
+csvColumn: ''
+out_resolution: 8
+wporking_dir: .\data
