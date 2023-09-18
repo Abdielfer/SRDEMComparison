@@ -393,12 +393,16 @@ def sampling_Full_rasters(raster1_path, raster2_path) -> np.array:
     5. height of a pixel in the y-direction (usually negative)
 
     The geotransform to convert between pixel coordinates and georeferenced coordinates using the following equations:
-    ```
+
     x_geo = geotransform[0] + x_pixel * geotransform[1] + y_line * geotransform[2]
     y_geo = geotransform[3] + x_pixel * geotransform[4] + y_line * geotransform[5]
-    ```
+
     `x_pixel` and `y_line` : pixel coordinates of a point in the raster, 
-    `x_geo` and `y_geo` : corresponding georeferenced coordinates ⁴.
+    `x_geo` and `y_geo` : corresponding georeferenced coordinates.
+
+    In addition, to extract the value in the center of the pixels, we add 1/2 of width and hight respectively.
+    x_coord = i * raster1_transform[1] + raster1_transform[0] + raster1_transform[1]/2 
+    y_coord = j * raster1_transform[5] + raster1_transform[3] + raster1_transform[5]/2
 
     '''
     # Open the first raster and get its metadata
@@ -426,8 +430,8 @@ def sampling_Full_rasters(raster1_path, raster2_path) -> np.array:
     for i in range(x_size):
         for j in range(y_size):
             # Get the coordinates of the pixel in the first raster
-            x_coord = i * raster1_transform[1] + raster1_transform[0]
-            y_coord = j * raster1_transform[5] + raster1_transform[3]
+            x_coord = i * raster1_transform[1] + raster1_transform[0] + raster1_transform[1]/2 
+            y_coord = j * raster1_transform[5] + raster1_transform[3] + raster1_transform[5]/2 
 
             # Get the value of the pixel in the first and second rasters
             value_raster1 = raster1_band.ReadAsArray(i, j, 1, 1)[0][0]
@@ -471,8 +475,8 @@ def randomSampling_rasters(raster1_path, raster2_path, num_samples):
         i = np.random.randint(0, x_size)
         j = np.random.randint(0, y_size)
         # Generate random coordinates within the raster limits
-        x = i * raster1_transform[1] + raster1_transform[0]
-        y = j * raster1_transform[5] + raster1_transform[3]
+        x = i * raster1_transform[1] + raster1_transform[0]+ raster1_transform[1]/2 
+        y = j * raster1_transform[5] + raster1_transform[3]+ raster1_transform[5]/2 
         
         # Extract the values from the two rasters at the selected coordinates
         value1 = raster1_band.ReadAsArray(i, j, 1, 1)[0][0]
