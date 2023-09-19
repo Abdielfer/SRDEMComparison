@@ -13,9 +13,8 @@ def main(cfg: DictConfig):
     # dem_2 = cfg['dem_2']
     # _,dem1_Name,_ = U.get_parenPath_name_ext(dem_1) 
     # _,dem2_Name,_ = U.get_parenPath_name_ext(dem_2) 
-    # sampl = U.plotRasterComparisonScattered(dem_1,dem_2,title = f'DEMs correlation {dem1_Name} vs {dem2_Name}',numOfSamples=5000)
-    # logging.info(f"ScatterPlot Dataset: {sampl[0:30,:]}")
-    # U.createCSVFromList(cfg['layOutOutputPath'],sampl)
+    # U.plotRasterPDFComparison(dem_1,dem_2,title = f'DEMs correlation {dem1_Name} vs {dem2_Name}',show=True, globalMax=45)
+   
 
 
 if __name__ == "__main__":

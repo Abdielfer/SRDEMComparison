@@ -5,6 +5,8 @@ import pathlib
 import shutil
 import pandas as pd
 import numpy as np
+from numpy import linspace
+from scipy.stats.kde import gaussian_kde
 from sklearn.metrics import r2_score
 import matplotlib.pyplot as plt
 import rasterio as rio
@@ -317,6 +319,7 @@ def plotRasterHistComparison(DEM1,DEM2,title:str='', ax_x_units:str='', bins:int
     fig, ax = plt.subplots(1,sharey=True, tight_layout=True)
     ax.hist([dataRechaped_1[0],dataRechaped_2[0]],
             bins,
+            density=True,
             rwidth=0.8)
     ax.legend([f"{dem1_Name}",f"{dem2_Name}"], prop={'size': 8})
     ax.set_title(title)
@@ -330,7 +333,66 @@ def plotRasterHistComparison(DEM1,DEM2,title:str='', ax_x_units:str='', bins:int
     
     # plt.show()
 
-def plotRasterComparisonScattered(DEM1,DEM2,title:str='', numOfSamples:int=100000)->np.array:
+def plotRasterPDFComparison(DEM1,DEM2,title:str='', ax_x_units:str='', bins:int = 100, addmax= False, show:bool=False, globalMax:int = 0):
+    '''
+    # this create the kernel, given an array it will estimate the probability over that values
+    kde = gaussian_kde( data )
+    # these are the values over wich your kernel will be evaluated
+    dist_space = linspace( min(data), max(data), 100 )
+    # plot the results
+    plt.plot( dist_space, kde(dist_space))
+   
+    '''
+    _,dem1_Name,_ = get_parenPath_name_ext(DEM1)
+    _,dem2_Name,_ = get_parenPath_name_ext(DEM2)
+    dem_1_Array = readRasteReplacingNoDataWithNan(DEM1)
+    dem_2_Array = readRasteReplacingNoDataWithNan(DEM2)
+    
+    ## If <bins> is a list, add the maximum value to <bins>.  
+    if (addmax and isinstance(bins,list)):
+        bins.append(np.maximum(np.nanmax(dem_1_Array),np.nanmax(dem_2_Array)).astype(int))
+    
+    # Reading raster. 
+        ##    Data 1
+    dataRechaped_1 = np.reshape(dem_1_Array,(-1))
+    data1= remove_nan_vector(dataRechaped_1)
+        ##    Data 2
+    dataRechaped_2 = np.reshape(dem_2_Array,(-1))
+    data2= remove_nan_vector(dataRechaped_2)
+    
+    ## Prepare kernels 
+    global_Min = min( min(data1), min(data2))
+    if globalMax == 0: 
+        global_Max = max(max(data1), max(data2))
+    else: 
+        global_Max = globalMax
+       
+    print(data1.shape)
+    kde_D1 = gaussian_kde(data1)
+    dist_space_D1 = linspace(global_Min, global_Max, 100 )
+
+    print(data2.shape)
+    kde_D2 = gaussian_kde(data2)
+    dist_space_D2 = linspace( global_Min, global_Max, 100 )
+    
+    # Prepare plot
+    fig, ax = plt.subplots(1,sharey=True, tight_layout=True)  
+    ax.plot(dist_space_D1,kde_D1(dist_space_D1),alpha=0.6, color='k') 
+    ax.plot(dist_space_D2,kde_D2(dist_space_D2),alpha=0.6, color='r') 
+    ax.legend([f"{dem1_Name}",f"{dem2_Name}"], prop={'size': 8})
+    ax.set_title(title)
+    ax.set_xlabel(ax_x_units) 
+    ax.set_ylabel('Frequency')
+   
+    if isinstance(bins,list):
+        plt.xticks(bins)
+        print(bins)
+        plt.gca().set_xticklabels([str(i) for i in bins], minor = True)
+    
+    if show:
+        plt.show()
+
+def plotRasterCorrelationScattered(DEM1,DEM2,title:str='', numOfSamples:int=100000)->np.array:
     '''
     
 
@@ -348,14 +410,9 @@ def plotRasterComparisonScattered(DEM1,DEM2,title:str='', numOfSamples:int=10000
     dem_1_Array = sampling_clean[:,2] 
     dem_2_Array = sampling_clean[:,3]
 
-    # dataRechaped_1 = np.reshape(dem_1_Array,(1,-1))
-    # print(dataRechaped_1.size)
-    # dataRechaped_2 = np.reshape(dem_2_Array,(1,-1))
-    # print(dataRechaped_2.size)
-
     # Prepare plot
     fig, ax = plt.subplots()
-    scatter =ax.scatter(dem_1_Array, dem_2_Array,linewidths=0.3)
+    ax.scatter(dem_1_Array, dem_2_Array,linewidths=0.3)
 
     # Plot the reference line
     ax.plot([0, 1], [0, 1], transform=ax.transAxes, linestyle='--', color='black')
@@ -369,6 +426,11 @@ def plotRasterComparisonScattered(DEM1,DEM2,title:str='', numOfSamples:int=10000
     ax.set_ylabel(dem2_Name)
     # plt.show()
     return sampling
+
+def remove_nan_vector(array):
+    nan_indices = np.where(np.isnan(array))
+    cleaned_array = np.delete(array, nan_indices)
+    return cleaned_array
 
 def remove_nan(array):
     nan_indices = np.where(np.isnan(array).any(axis=1))[0]
@@ -463,10 +525,7 @@ def randomSampling_rasters(raster1_path, raster2_path, num_samples):
     x_size = raster1.RasterXSize
     y_size = raster1.RasterYSize
     print(f"size x, y : {x_size} , {y_size}")
-    
-    total = x_size*y_size  
-    # Create an array to store the sampled points
-    sampled_points = np.zeros((x_size * y_size, 4))
+
     # Create an empty array to store the samples
     samples = np.zeros((num_samples, 4))
     # Loop through the number of samples
@@ -489,7 +548,6 @@ def randomSampling_rasters(raster1_path, raster2_path, num_samples):
             sampleCont+=1    
 
     return samples
-
 
 
 def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
@@ -546,120 +604,124 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
     ## Prepare report logging
     logging.info({"WBTools working dir ": WbT.get_WorkingDir()})
 
-    #______ Elevation statistics before filling : Compute mean, std, mode, max and min. Compare elevation histograms."
-    # dem_1_ElevStats = computeRaterStats(dem_1)
-    # dem_2_ElevStats = computeRaterStats(dem_2)
+      ### Elevation statistics before filling : Compute mean, std, mode, max and min. Compare elevation histograms."
+    dem_1_ElevStats = computeRaterStats(dem_1)
+    dem_2_ElevStats = computeRaterStats(dem_2)
     
-    #    # Log Elevation Stats.
-    # update_logs({f"{dem1_Name} elevation stats before filling:": dem_1_ElevStats})
-    # update_logs({f"{dem2_Name} elevation stats before filling: ": dem_2_ElevStats})
-        # plot elevation histogram
-    # plotRasterHistComparison(dem_1,dem_2,title=f' Elevation comparison: {dem1_Name} vs {dem2_Name}', ax_x_units ='Elevation (m)')
-    
-    dataset = plotRasterComparisonScattered(dem_1,dem_2,title = f'DEMs correlation {dem1_Name} vs {dem2_Name}',numOfSamples=1000000)
+       # Log Elevation Stats.
+    update_logs({f"{dem1_Name} elevation stats before filling:": dem_1_ElevStats})
+    update_logs({f"{dem2_Name} elevation stats before filling: ": dem_2_ElevStats})
+       # plot elevation histogram
+    plotRasterHistComparison(dem_1,dem_2,title=f' Elevation comparison: {dem1_Name} vs {dem2_Name}', ax_x_units ='Elevation (m)')
+    plotRasterPDFComparison(dem_1,dem_2,title=f' Elevation PDF comparison: {dem1_Name} vs {dem2_Name}', ax_x_units ='Elevation (m)')
+
+    dataset = plotRasterCorrelationScattered(dem_1,dem_2,title = f'DEMs correlation {dem1_Name} vs {dem2_Name}',numOfSamples=1000000)
     update_logs({f" First 30 samples from scatter plot: ": dataset[0:30,:]})
 #     #______ Filled area comparison: Compute mean, std, mode, max and min. Compare the histograms."
 #     #______ Fill the DEMs with WhangAndLiu algorithms from WhiteBoxTools
-#     dem_1_Filled = WbT.fixNoDataAndfillDTM(dem_1)
-#     dem_2_Filled = WbT.fixNoDataAndfillDTM(dem_2)
-#     print(f"DEM_2 filled at : {dem_2_Filled}")
-# #     # garbageList.append(dem_1_Filled) 
-# #     # garbageList.append(dem_2_Filled) 
+    dem_1_Filled = WbT.fixNoDataAndfillDTM(dem_1)
+    dem_2_Filled = WbT.fixNoDataAndfillDTM(dem_2)
+    print(f"DEM_2 filled at : {dem_2_Filled}")
+#     # garbageList.append(dem_1_Filled) 
+#     # garbageList.append(dem_2_Filled) 
 
 # #     ####  Compute and log percent of transformed areas. 
 # #             #######  dem_1
-#     dem_1_statement = str("'"+dem_1_Filled+"'"+'-'+"'"+dem_1+"' > 0.05") # Remove some noise because of approximations with -0.05
-#     dem_1_transformations_path = addSubstringToName(dem_1,'_TransformedArea')
-#     dem_1_Transformations_binary = WbT.rasterCalculator(dem_1_transformations_path,dem_1_statement)
-#     dem_1_Transformation_percent = computeRasterValuePercent(dem_1_Transformations_binary)
-#     update_logs({f"Depressions and pit percent in {dem1_Name} ": dem_1_Transformation_percent})
+    dem_1_statement = str("'"+dem_1_Filled+"'"+'-'+"'"+dem_1+"' > 0.05") # Remove some noise because of approximations with -0.05
+    dem_1_transformations_path = addSubstringToName(dem_1,'_TransformedArea')
+    dem_1_Transformations_binary = WbT.rasterCalculator(dem_1_transformations_path,dem_1_statement)
+    dem_1_Transformation_percent = computeRasterValuePercent(dem_1_Transformations_binary)
+    update_logs({f"Depressions and pit percent in {dem1_Name} ": dem_1_Transformation_percent})
 
 # #             ########  dem_2
-#     dem_2_statement = str("'"+dem_2_Filled+"'"+' - '+"'"+dem_2+"' > 0.05") # Remove some noise because of approximations with -0.05
-#     dem_2_transformations_path = addSubstringToName(dem_2,'_TransformedArea')
-#     dem_2_Transformations_binary = WbT.rasterCalculator(dem_2_transformations_path,dem_2_statement)
-#     dem_2_Transformation_percent = computeRasterValuePercent(dem_2_Transformations_binary)
-#     update_logs({f"Depressions and pit percent in {dem2_Name} ": dem_2_Transformation_percent})
+    dem_2_statement = str("'"+dem_2_Filled+"'"+' - '+"'"+dem_2+"' > 0.05") # Remove some noise because of approximations with -0.05
+    dem_2_transformations_path = addSubstringToName(dem_2,'_TransformedArea')
+    dem_2_Transformations_binary = WbT.rasterCalculator(dem_2_transformations_path,dem_2_statement)
+    dem_2_Transformation_percent = computeRasterValuePercent(dem_2_Transformations_binary)
+    update_logs({f"Depressions and pit percent in {dem2_Name} ": dem_2_Transformation_percent})
 
 # #    ##______ Elevations statistics AFTER filling : Compute mean, std, mode, max and min. Compare elevation histograms."
-#     dem_1_FilledElevStats = computeRaterStats(dem_1_Filled)
-#     dem_2_FilledElevStats = computeRaterStats(dem_2_Filled)
+    dem_1_FilledElevStats = computeRaterStats(dem_1_Filled)
+    dem_2_FilledElevStats = computeRaterStats(dem_2_Filled)
 #         # Log Elevation Stats.
-#     update_logs({f"{dem1_Name} Filled elevation stats ": dem_1_FilledElevStats})
-#     update_logs({f"{dem2_Name} Filled elevation stats ": dem_2_FilledElevStats})
+    update_logs({f"{dem1_Name} Filled elevation stats ": dem_1_FilledElevStats})
+    update_logs({f"{dem2_Name} Filled elevation stats ": dem_2_FilledElevStats})
 #         # plot elevation histogram of filled dems.
-#     plotRasterHistComparison(dem_1_Filled,dem_2_Filled,title=f"Elevation comparison after filling the dems: {dem1_Name} vs {dem2_Name}",ax_x_units ='Elevation (m)')
+    plotRasterHistComparison(dem_1_Filled,dem_2_Filled,title=f"Elevation comparison after filling the dems: {dem1_Name} vs {dem2_Name}",ax_x_units ='Elevation (m)')
+    plotRasterPDFComparison(dem_1_Filled,dem_2_Filled,title=f"Elevation PDF comparison after filling the dems: {dem1_Name} vs {dem2_Name}",ax_x_units ='Elevation (m)')
 
 # #     ##______ Slope statistics: Compute mean, std, mode, max and min. Compare slope histograms."
 #         # Compute Slope and Slope stats
-#     dem_1_Slope = WbT.computeSlope(dem_1_Filled)
-#     dem_1_SlopStats = computeRaterStats(dem_1_Slope)
-#     dem_2_Slope = WbT.computeSlope(dem_2_Filled)
-#     dem_2_SlopeStats  = computeRaterStats(dem_2_Slope)
+    dem_1_Slope = WbT.computeSlope(dem_1_Filled)
+    dem_1_SlopStats = computeRaterStats(dem_1_Slope)
+    dem_2_Slope = WbT.computeSlope(dem_2_Filled)
+    dem_2_SlopeStats  = computeRaterStats(dem_2_Slope)
 
 #     # garbageList.append(dem_1_Slope)   ## Uncomment to delete at the end
 #     # garbageList.append(dem_2_Slope)   ## Uncomment to delete at the end
  
 # #         # Log Slope Stats.
-#     update_logs({f"{dem1_Name} slope stat ": dem_1_SlopStats})
-#     update_logs({f"{dem2_Name} slope stat  ": dem_2_SlopeStats})
-#         # plot elevation histogram
-#     print("### >>>> Preparing plot......")
-#     dataSet = plotRasterHistComparison(dem_1_Slope,dem_2_Slope,title = f'Slope comparison: {dem1_Name} vs {dem2_Name}',bins=[0,1,2,4,6,8,10,15,30,45], ax_x_units= 'Slope (%)')
-#     update_logs({f"ScatterPlot Dataset ": dataSet}) 
+    update_logs({f"{dem1_Name} slope stat ": dem_1_SlopStats})
+    update_logs({f"{dem2_Name} slope stat  ": dem_2_SlopeStats})
+        # plot elevation histogram
+    print("### >>>> Preparing plot......")
+    dataSet = plotRasterHistComparison(dem_1_Slope,dem_2_Slope,title = f'Slope comparison: {dem1_Name} vs {dem2_Name}',bins=[0,1,2,4,6,8,10,15,30,45], ax_x_units= 'Slope (%)')
+    plotRasterPDFComparison(dem_1_Slope,dem_2_Slope,title = f'Slope PDF comparison: {dem1_Name} vs {dem2_Name}',ax_x_units= 'Slope (%)', globalMax=45)
     
-#     ### Flow routine: Flow accumulation, d8_pointer, stream network raster, stream network vectors:  
-#         ##______dem_1 Flow routine.
-#             # Compute Flow accumulation and Flow accumulation stat on filled cdem.
-#             # Flow Accumulation statistics: Compute mean, std, mode, max and min. Compare slope histograms."
-#     dem_1_FAcc = WbT.d8_flow_accumulation(dem_1_Filled, valueType="catchment area")
-#     dem_1_FAcc_Stats = computeRaterStats(dem_1_FAcc)
-#     # garbageList.append(dem_1_FAcc)   ## Uncomment to delete at the end
-
-#             # River net for 5th and 3rd ostrahler orders. 
-#     river5th_cdemName = addSubstringToName(dem_1,'_river5thOrder')
-#     WbT.extractStreamNetwork(dem_1_FAcc,river5th_cdemName,strahOrdThreshold_5th)
+    update_logs({f"ScatterPlot Dataset ": dataSet}) 
     
-#     river3rd_dem_1_Name = addSubstringToName(dem_1,'_river3rdOrder')
-#     WbT.extractStreamNetwork(dem_1_FAcc,river3rd_dem_1_Name,strahOrdThreshold_3rd)
-#     update_logs({f"Flow accumulation stats from {dem1_Name}: ": dem_1_FAcc_Stats})  
+    ### Flow routine: Flow accumulation, d8_pointer, stream network raster, stream network vectors:  
+        ##______dem_1 Flow routine.
+            # Compute Flow accumulation and Flow accumulation stat on filled cdem.
+            # Flow Accumulation statistics: Compute mean, std, mode, max and min. Compare slope histograms."
+    dem_1_FAcc = WbT.d8_flow_accumulation(dem_1_Filled, valueType="catchment area")
+    dem_1_FAcc_Stats = computeRaterStats(dem_1_FAcc)
+    # garbageList.append(dem_1_FAcc)   ## Uncomment to delete at the end
 
-#     garbageList.append(river3rd_dem_1_Name)
+            # River net for 5th and 3rd ostrahler orders. 
+    river5th_cdemName = addSubstringToName(dem_1,'_river5thOrder')
+    WbT.extractStreamNetwork(dem_1_FAcc,river5th_cdemName,strahOrdThreshold_5th)
+    
+    river3rd_dem_1_Name = addSubstringToName(dem_1,'_river3rdOrder')
+    WbT.extractStreamNetwork(dem_1_FAcc,river3rd_dem_1_Name,strahOrdThreshold_3rd)
+    update_logs({f"Flow accumulation stats from {dem1_Name}: ": dem_1_FAcc_Stats})  
+
+    garbageList.append(river3rd_dem_1_Name)
              
+            #_ River network vector computed from the 3rd Strahler order river network.
+    # Compute Flow Direction with d8FPointerRasterCalculation()
+    d8Pionter_dem_1 = WbT.d8FPointerRasterCalculation(dem_1_Filled)    # This is the flow direction map
+    river3rd_dem_1_shape = WbT.rasterStreamToVector(river3rd_dem_1_Name,d8Pionter_dem_1)
+    
+         ##______ dem_2 Flow routine.
+            # Compute Flow accumulation and Flow accumulation stats on filled dem_2.
+            # Flow Accumulation statistics: Compute mean, std, mode, max and min. Compare slope histograms."
+    FAcc_dem_2 = WbT.d8_flow_accumulation(dem_2_Filled, valueType="catchment area")  # 
+    FAcc_dem_2_Stats = computeRaterStats(FAcc_dem_2)
+    # garbageList.append(FAcc_dem_2)   ## Uncomment to delete at the end
+    
+    river5th_dem_2_Name = addSubstringToName(dem_2,'_river5thOrder')
+    WbT.extractStreamNetwork(FAcc_dem_2,river5th_dem_2_Name,strahOrdThreshold_5th)
+    
+    river3rd_dem_2_Name = addSubstringToName(dem_2,'_river3rdOrder')
+    WbT.extractStreamNetwork(FAcc_dem_2,river3rd_dem_2_Name,strahOrdThreshold_3rd)
+    update_logs({f"Flow accumulation stats from {dem2_Name}: ": FAcc_dem_2_Stats})
+
+#     # garbageList.append(FAcc_dem_2)
+    garbageList.append(river3rd_dem_2_Name)
+
 #             #_ River network vector computed from the 3rd Strahler order river network.
 #     # Compute Flow Direction with d8FPointerRasterCalculation()
-#     d8Pionter_dem_1 = WbT.d8FPointerRasterCalculation(dem_1_Filled)    # This is the flow direction map
-#     river3rd_dem_1_shape = WbT.rasterStreamToVector(river3rd_dem_1_Name,d8Pionter_dem_1)
+    d8Pionter_dem_2 = WbT.d8FPointerRasterCalculation(dem_2_Filled)
+    river3rd_dem_2_shape = WbT.rasterStreamToVector(river3rd_dem_2_Name, d8Pionter_dem_2)
     
-#          ##______ dem_2 Flow routine.
-#             # Compute Flow accumulation and Flow accumulation stats on filled dem_2.
-#             # Flow Accumulation statistics: Compute mean, std, mode, max and min. Compare slope histograms."
-#     FAcc_dem_2 = WbT.d8_flow_accumulation(dem_2_Filled, valueType="catchment area")  # 
-#     FAcc_dem_2_Stats = computeRaterStats(FAcc_dem_2)
-#     # garbageList.append(FAcc_dem_2)   ## Uncomment to delete at the end
-    
-#     river5th_dem_2_Name = addSubstringToName(dem_2,'_river5thOrder')
-#     WbT.extractStreamNetwork(FAcc_dem_2,river5th_dem_2_Name,strahOrdThreshold_5th)
-    
-#     river3rd_dem_2_Name = addSubstringToName(dem_2,'_river3rdOrder')
-#     WbT.extractStreamNetwork(FAcc_dem_2,river3rd_dem_2_Name,strahOrdThreshold_3rd)
-#     update_logs({f"Flow accumulation stats from {dem2_Name}: ": FAcc_dem_2_Stats})
-
-# #     # garbageList.append(FAcc_dem_2)
-#     garbageList.append(river3rd_dem_2_Name)
-
-# #             #_ River network vector computed from the 3rd Strahler order river network.
-# #     # Compute Flow Direction with d8FPointerRasterCalculation()
-#     d8Pionter_dem_2 = WbT.d8FPointerRasterCalculation(dem_2_Filled)
-#     river3rd_dem_2_shape = WbT.rasterStreamToVector(river3rd_dem_2_Name, d8Pionter_dem_2)
-    
-# #     ## Plot scatter plot and r^2
-#     plotRasterComparisonScattered(dem_1,dem_2,title = f'Correlation between elevation maps: {dem1_Name} vs {dem2_Name}')
+#     ## Plot scatter plot and r^2
+    plotRasterCorrelationScattered(dem_1,dem_2,title = f'Correlation between elevation maps: {dem1_Name} vs {dem2_Name}')
     
 #     ## Plot 
     plt.show()
 #     # Print a layOut with both 3rd order river networks vectors. 
-    # QT.overlap_vectors(river3rd_dem_1_shape,river3rd_dem_2_shape,layOutPath)   
+    QT.overlap_vectors(river3rd_dem_1_shape,river3rd_dem_2_shape,layOutPath)   
 
     if emptyGarbage is True:
         for f in garbageList:
