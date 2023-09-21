@@ -421,7 +421,7 @@ def plotRasterCorrelationScattered(DEM1,DEM2,title:str='', numOfSamples:int=1000
     r2 = r2_score(dem_1_Array, dem_2_Array)
    
     # Set the ax labels, title and legend
-    ax.set_title(title+ '\n'+ f'R Square Coefficient: {r2:.2f}')
+    ax.set_title(title+ '\n'+ f'R^2 Coefficient: {r2:.2f}')
     ax.set_xlabel(dem1_Name) 
     ax.set_ylabel(dem2_Name)
     # plt.show()
@@ -595,8 +595,8 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
     garbageList = []
     
     # Threshold for river extraction
-    strahOrdThreshold_5th = 30000  # Experimental values 
-    strahOrdThreshold_3rd = 300000   # Experimental values 
+    # strahOrdThreshold_5th = 30000  # Experimental values 
+    # strahOrdThreshold_3rd = 300000   # Experimental values 
     
     ## Initialize WhiteBoxTools working directory at the parent directory of dem_1.    
     WbT = WbT_dtmTransformer(parentDirDEM_1)
@@ -649,6 +649,7 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
 #         # plot elevation histogram of filled dems.
     plotRasterHistComparison(dem_1_Filled,dem_2_Filled,title=f"Elevation comparison after filling the dems: {dem1_Name} vs {dem2_Name}",ax_x_units ='Elevation (m)')
     plotRasterPDFComparison(dem_1_Filled,dem_2_Filled,title=f"Elevation PDF comparison after filling the dems: {dem1_Name} vs {dem2_Name}",ax_x_units ='Elevation (m)')
+    plotRasterCorrelationScattered(dem_1,dem_2,title = f'DEMs filled correlation {dem_1_Filled} vs {dem_2_Filled}',numOfSamples=1000000)
 
 # #     ##______ Slope statistics: Compute mean, std, mode, max and min. Compare slope histograms."
 #         # Compute Slope and Slope stats
@@ -674,54 +675,52 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
         ##______dem_1 Flow routine.
             # Compute Flow accumulation and Flow accumulation stat on filled cdem.
             # Flow Accumulation statistics: Compute mean, std, mode, max and min. Compare slope histograms."
-    dem_1_FAcc = WbT.d8_flow_accumulation(dem_1_Filled, valueType="catchment area")
-    dem_1_FAcc_Stats = computeRaterStats(dem_1_FAcc)
-    # garbageList.append(dem_1_FAcc)   ## Uncomment to delete at the end
+    # dem_1_FAcc = WbT.d8_flow_accumulation(dem_1_Filled, valueType="catchment area")
+    # dem_1_FAcc_Stats = computeRaterStats(dem_1_FAcc)
+    # # garbageList.append(dem_1_FAcc)   ## Uncomment to delete at the end
 
-            # River net for 5th and 3rd ostrahler orders. 
-    river5th_cdemName = addSubstringToName(dem_1,'_river5thOrder')
-    WbT.extractStreamNetwork(dem_1_FAcc,river5th_cdemName,strahOrdThreshold_5th)
+    #         # River net for 5th and 3rd ostrahler orders. 
+    # river5th_cdemName = addSubstringToName(dem_1,'_river5thOrder')
+    # WbT.extractStreamNetwork(dem_1_FAcc,river5th_cdemName,strahOrdThreshold_5th)
     
-    river3rd_dem_1_Name = addSubstringToName(dem_1,'_river3rdOrder')
-    WbT.extractStreamNetwork(dem_1_FAcc,river3rd_dem_1_Name,strahOrdThreshold_3rd)
-    update_logs({f"Flow accumulation stats from {dem1_Name}: ": dem_1_FAcc_Stats})  
+    # river3rd_dem_1_Name = addSubstringToName(dem_1,'_river3rdOrder')
+    # WbT.extractStreamNetwork(dem_1_FAcc,river3rd_dem_1_Name,strahOrdThreshold_3rd)
+    # update_logs({f"Flow accumulation stats from {dem1_Name}: ": dem_1_FAcc_Stats})  
 
-    garbageList.append(river3rd_dem_1_Name)
+    # garbageList.append(river3rd_dem_1_Name)
              
             #_ River network vector computed from the 3rd Strahler order river network.
     # Compute Flow Direction with d8FPointerRasterCalculation()
     d8Pionter_dem_1 = WbT.d8FPointerRasterCalculation(dem_1_Filled)    # This is the flow direction map
-    river3rd_dem_1_shape = WbT.rasterStreamToVector(river3rd_dem_1_Name,d8Pionter_dem_1)
+    # river3rd_dem_1_shape = WbT.rasterStreamToVector(river3rd_dem_1_Name,d8Pionter_dem_1)
     
          ##______ dem_2 Flow routine.
             # Compute Flow accumulation and Flow accumulation stats on filled dem_2.
             # Flow Accumulation statistics: Compute mean, std, mode, max and min. Compare slope histograms."
-    FAcc_dem_2 = WbT.d8_flow_accumulation(dem_2_Filled, valueType="catchment area")  # 
-    FAcc_dem_2_Stats = computeRaterStats(FAcc_dem_2)
+    # FAcc_dem_2 = WbT.d8_flow_accumulation(dem_2_Filled, valueType="catchment area")  # 
+    # FAcc_dem_2_Stats = computeRaterStats(FAcc_dem_2)
     # garbageList.append(FAcc_dem_2)   ## Uncomment to delete at the end
     
-    river5th_dem_2_Name = addSubstringToName(dem_2,'_river5thOrder')
-    WbT.extractStreamNetwork(FAcc_dem_2,river5th_dem_2_Name,strahOrdThreshold_5th)
+    # river5th_dem_2_Name = addSubstringToName(dem_2,'_river5thOrder')
+    # WbT.extractStreamNetwork(FAcc_dem_2,river5th_dem_2_Name,strahOrdThreshold_5th)
     
-    river3rd_dem_2_Name = addSubstringToName(dem_2,'_river3rdOrder')
-    WbT.extractStreamNetwork(FAcc_dem_2,river3rd_dem_2_Name,strahOrdThreshold_3rd)
-    update_logs({f"Flow accumulation stats from {dem2_Name}: ": FAcc_dem_2_Stats})
+#     river3rd_dem_2_Name = addSubstringToName(dem_2,'_river3rdOrder')
+#     WbT.extractStreamNetwork(FAcc_dem_2,river3rd_dem_2_Name,strahOrdThreshold_3rd)
+    # update_logs({f"Flow accumulation stats from {dem2_Name}: ": FAcc_dem_2_Stats})
 
-#     # garbageList.append(FAcc_dem_2)
-    garbageList.append(river3rd_dem_2_Name)
+# #     # garbageList.append(FAcc_dem_2)
+#     garbageList.append(river3rd_dem_2_Name)
 
 #             #_ River network vector computed from the 3rd Strahler order river network.
 #     # Compute Flow Direction with d8FPointerRasterCalculation()
     d8Pionter_dem_2 = WbT.d8FPointerRasterCalculation(dem_2_Filled)
-    river3rd_dem_2_shape = WbT.rasterStreamToVector(river3rd_dem_2_Name, d8Pionter_dem_2)
-    
-#     ## Plot scatter plot and r^2
-    plotRasterCorrelationScattered(dem_1,dem_2,title = f'Correlation between elevation maps: {dem1_Name} vs {dem2_Name}')
+    # river3rd_dem_2_shape = WbT.rasterStreamToVector(river3rd_dem_2_Name, d8Pionter_dem_2)
+
     
 #     ## Plot 
     plt.show()
 #     # Print a layOut with both 3rd order river networks vectors. 
-    QT.overlap_vectors(river3rd_dem_1_shape,river3rd_dem_2_shape,layOutPath)   
+    # QT.overlap_vectors(river3rd_dem_1_shape,river3rd_dem_2_shape,layOutPath)   
 
     if emptyGarbage is True:
         for f in garbageList:
