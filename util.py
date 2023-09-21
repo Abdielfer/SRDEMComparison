@@ -421,7 +421,7 @@ def plotRasterCorrelationScattered(DEM1,DEM2,title:str='', numOfSamples:int=1000
     r2 = r2_score(dem_1_Array, dem_2_Array)
    
     # Set the ax labels, title and legend
-    ax.set_title(title+ '\n'+ f'R^2 Coefficient: {r2:.2f}')
+    ax.set_title(title+ '\n'+ f'R^2 Coefficient: {r2:.4f}')
     ax.set_xlabel(dem1_Name) 
     ax.set_ylabel(dem2_Name)
     # plt.show()
