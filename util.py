@@ -764,11 +764,10 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
             os.remove(f)
 
 
-def reportSResDEMComparisonSimplified(cfg: DictConfig, emptyGarbage:bool=True):
+def reportSResDEMComparisonSimplified(cfg: DictConfig):
     '''
     The goal of this function is to create a report of comparison, between two DEMs.
     BOTH DEMs must be in the same folder. ALL outputs will be writen to this folder. You can automaticaly delete all intermediary results of your choice by filling uncomment the lines of code to fill 
-    the @emptyGarbage list and set emptyGarbage = True(default). 
     
     Inputs: 
     @cfg: DictConfig. Hydra config dictionary containing the path to the DEMs to be compared as <dem_1> and <dem_2>
