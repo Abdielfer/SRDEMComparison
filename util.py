@@ -297,7 +297,7 @@ def reshape_as_raster(arr):
 def readRasterAsArry(rasterPath):
    return gdal_array.LoadFile(rasterPath)
 
-def plotRasterHistComparison(DEM1,DEM2,title:str='', ax_x_units:str='', bins:int = 100, addmax= False):
+def plotRasterHistComparison(DEM1,DEM2,title:str='rasterHistogram', ax_x_units:str='', bins:int = 100, addmax= False, show:bool=False, save:bool=True, savePath:str=''):
     '''
     
 
@@ -331,9 +331,16 @@ def plotRasterHistComparison(DEM1,DEM2,title:str='', ax_x_units:str='', bins:int
         print(bins)
         plt.gca().set_xticklabels([str(i) for i in bins], minor = True)
     
-    # plt.show()
+    if save:
+        if not savePath:
+            savePath = os.path.join(os.getcwd(),title +'.png')
+            print(f'Figure: {title} saved to dir: {savePath}')
+        plt.savefig(savePath)
 
-def plotRasterPDFComparison(DEM1,DEM2,title:str='', ax_x_units:str='', bins:int = 100, addmax= False, show:bool=False, globalMax:int = 0):
+    if show:
+        plt.show()
+
+def plotRasterPDFComparison(DEM1,DEM2,title:str='RasterPDFRasterPDF', ax_x_units:str='', bins:int = 100, addmax= False, show:bool=False, globalMax:int = 0, save:bool=True, savePath:str=''):
     '''
     # this create the kernel, given an array it will estimate the probability over that values
     kde = gaussian_kde( data )
@@ -388,11 +395,17 @@ def plotRasterPDFComparison(DEM1,DEM2,title:str='', ax_x_units:str='', bins:int 
         plt.xticks(bins)
         print(bins)
         plt.gca().set_xticklabels([str(i) for i in bins], minor = True)
+          
+    if save:
+        if not savePath:
+            savePath = os.path.join(os.getcwd(),title +'.png')
+            print(f'Figure: {title} saved to dir: {savePath}')
+        plt.savefig(savePath)
     
     if show:
         plt.show()
 
-def plotRasterCorrelationScattered(DEM1,DEM2,title:str='', numOfSamples:int=100000)->np.array:
+def plotRasterCorrelationScattered(DEM1,DEM2,title:str='RasterCorrelation', numOfSamples:int=100000, show:bool=False,save:bool=True, savePath:str='')->np.array:
     '''
     This function takes <numOfSamples> random points, verifying they are valid in both maps, and plot the
     correlation in scatter plot form. The r^2 coeffitient is also calculated and showed in the title of the printed figure. The values of shosen points are taken from the pixel's centre. 
@@ -429,7 +442,16 @@ def plotRasterCorrelationScattered(DEM1,DEM2,title:str='', numOfSamples:int=1000
     ax.set_title(title+ '\n'+ f'R^2 Coefficient: {r2:.4f}' + f' from {numOfSamples} points')
     ax.set_xlabel(dem1_Name) 
     ax.set_ylabel(dem2_Name)
-    # plt.show()
+    
+    if save:
+        if not savePath:
+            savePath = os.path.join(os.getcwd(),title +'.png')
+            print(f'Figure: {title} saved to dir: {savePath}')
+        plt.savefig(savePath)
+    
+    if show:
+        plt.show()
+    
     return sampling
 
 def remove_nan_vector(array):
@@ -584,7 +606,6 @@ def randomSampling_rasters(raster1_path, raster2_path, num_samples) -> np.array:
 
     return samples
 
-
 def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
     '''
     The goal of this function is to create a report of comparison, between two DEMs.
@@ -647,11 +668,14 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
     update_logs({f"{dem1_Name} elevation stats before filling:": dem_1_ElevStats})
     update_logs({f"{dem2_Name} elevation stats before filling: ": dem_2_ElevStats})
        ## plot elevation histogram
-    plotRasterHistComparison(dem_1,dem_2,title=f' Elevation comparison: {dem1_Name} vs {dem2_Name}', ax_x_units ='Elevation (m)')
-    plotRasterPDFComparison(dem_1,dem_2,title=f' Elevation PDF comparison: {dem1_Name} vs {dem2_Name}', ax_x_units ='Elevation (m)')
-    
-    plotRasterCorrelationScattered(dem_1,dem_2,title = f'DEMs correlation',numOfSamples=50000)
-    dataset = plotRasterCorrelationScattered(dem_1,dem_2,title = f'DEMs correlation',numOfSamples=1000000)
+    savePath_ElevHist = os.path.join(parentDirDEM_1,'ElevationHist.png')
+    plotRasterHistComparison(dem_1,dem_2,title=f' Elevation comparison', ax_x_units ='Elevation (m)', savePath=savePath_ElevHist)
+    savePath_ElevPDF = os.path.join(parentDirDEM_1,'ElevationPDF.png')
+    plotRasterPDFComparison(dem_1,dem_2,title=f' Elevation PDF comparison', ax_x_units ='Elevation (m)',savePath=savePath_ElevPDF)
+    savePathe_Correlation50k = os.path.join(parentDirDEM_1,'Correlation50KPoints.png')
+    plotRasterCorrelationScattered(dem_1,dem_2,title = f'DEMs correlation',numOfSamples=50000,savePath = savePathe_Correlation50k)
+    savePathe_Correlation1M = os.path.join(parentDirDEM_1,'Correlation1MPoints.png')
+    dataset = plotRasterCorrelationScattered(dem_1,dem_2,title = f'DEMs correlation',numOfSamples=1000000, savePath=savePathe_Correlation1M)
     update_logs({f" First 30 samples from scatter plot: ": dataset[0:30,:]})
 
     ################______ SLOPE statistics: Compute mean, std, mode, max and min. Compare slope histograms."
@@ -669,10 +693,11 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
     update_logs({f"{dem2_Name} slope stat ": dem_2_SlopeStats})
         ## plot elevation histogram
     print("### >>>> Preparing Slope plot......")
-    plotRasterHistComparison(dem_1_Slope,dem_2_Slope,title = f'Slope histograms comparison',bins=[0,1,2,4,6,8,10,15,30,45], ax_x_units= 'Slope (%)')
-    plotRasterPDFComparison(dem_1_Slope,dem_2_Slope,title = f'Slope PDF comparison',ax_x_units= 'Slope (%)', globalMax=45)
+    savePath_SlopeHist = os.path.join(parentDirDEM_1,'SlopeHist.png')
+    plotRasterHistComparison(dem_1_Slope,dem_2_Slope,title = f'Slope histograms comparison',bins=[0,1,2,4,6,8,10,15,30,45], ax_x_units= 'Slope (%)',savePath=savePath_SlopeHist)
+    savePath_SlopePDF = os.path.join(parentDirDEM_1,'SlopeHist.png')
+    plotRasterPDFComparison(dem_1_Slope,dem_2_Slope,title = f'Slope PDF comparison',bins=[0,1,2,4,6,8,10,15,30,45], ax_x_units= 'Slope (%)', globalMax=45, savePath=savePath_SlopePDF)
     
-
     #################______ Filled area comparison: Compute mean, std, mode, max and min. Compare the histograms."
             ##______ Fill the DEMs with WhangAndLiu algorithms from WhiteBoxTools
     dem_1_Filled = WbT.fixNoDataAndfillDTM(dem_1)
@@ -703,8 +728,10 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
     update_logs({f"{dem1_Name} Filled elevation stats ": dem_1_FilledElevStats})
     update_logs({f"{dem2_Name} Filled elevation stats ": dem_2_FilledElevStats})
         # plot elevation histogram of filled dems.
-    plotRasterHistComparison(dem_1_Filled,dem_2_Filled,title=f"Elevation comparison after filling the dems: {dem1_Name} vs {dem2_Name}",ax_x_units ='Elevation (m)')
-    plotRasterPDFComparison(dem_1_Filled,dem_2_Filled,title=f"Elevation PDF comparison after filling the dems: {dem1_Name} vs {dem2_Name}",ax_x_units ='Elevation (m)')
+    savePath_ElevationFiledHist = os.path.join(parentDirDEM_1,'ElevationAfterFillHist.png')
+    plotRasterHistComparison(dem_1_Filled,dem_2_Filled,title=f"Elevation comparison after filling the dems",ax_x_units ='Elevation (m)',savePath=savePath_ElevationFiledHist)
+    savePath_ElevationFiledPDF = os.path.join(parentDirDEM_1,'ElevationAfterFillPDF.png')
+    plotRasterPDFComparison(dem_1_Filled,dem_2_Filled,title=f"Elevation PDF comparison after filling the dems",ax_x_units ='Elevation (m)', savePath=savePath_ElevationFiledPDF)
    
     
     ###########____ Flow routine: Flow accumulation, d8_pointer, stream network raster, stream network vectors:  
@@ -753,7 +780,7 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
     river3rd_dem_2_shape = WbT.rasterStreamToVector(river3rd_dem_2_Name, d8Pionter_dem_2)
 
 #     ## Plot 
-    plt.show()
+    # plt.show()
 
 #     # Print a layOut with both 3rd order river networks vectors. 
     QT.overlap_vectors(river3rd_dem_1_shape,river3rd_dem_2_shape,layOutPath)   
@@ -762,7 +789,6 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
         for f in garbageList:
             print(f"READY to remove : {f}")
             os.remove(f)
-
 
 def reportSResDEMComparisonSimplified(cfg: DictConfig):
     '''
@@ -798,44 +824,48 @@ def reportSResDEMComparisonSimplified(cfg: DictConfig):
     _,dem2_Name,_ = get_parenPath_name_ext(dem_2) 
   
     ## Initialize WhiteBoxTools working directory at the parent directory of dem_1.    
-    WbT = WbT_dtmTransformer(parentDirDEM_1)
+    # WbT = WbT_dtmTransformer(parentDirDEM_1)
        
     ## Prepare report logging
-    logging.info({"WBTools working dir ": WbT.get_WorkingDir()})
+    # logging.info({"WBTools working dir ": WbT.get_WorkingDir()})
 
     ################_____ Elevation statistics before filling : Compute mean, std, mode, max and min. Compare elevation histograms."
-    dem_1_ElevStats = computeRaterStats(dem_1)
-    dem_2_ElevStats = computeRaterStats(dem_2)
+    # dem_1_ElevStats = computeRaterStats(dem_1)
+    # dem_2_ElevStats = computeRaterStats(dem_2)
     
-       # Log Elevation Stats.
-    update_logs({f"{dem1_Name} elevation stats before filling:": dem_1_ElevStats})
-    update_logs({f"{dem2_Name} elevation stats before filling: ": dem_2_ElevStats})
-       # plot elevation histogram
-    plotRasterHistComparison(dem_1,dem_2,title=f' Elevation comparison: {dem1_Name} vs {dem2_Name}', ax_x_units ='Elevation (m)')
-    plotRasterPDFComparison(dem_1,dem_2,title=f' Elevation PDF comparison: {dem1_Name} vs {dem2_Name}', ax_x_units ='Elevation (m)')
-    
-    plotRasterCorrelationScattered(dem_1,dem_2,title = f'DEMs correlation',numOfSamples=50000)
-    dataset = plotRasterCorrelationScattered(dem_1,dem_2,title = f'DEMs correlation',numOfSamples=1000000)
+    #    # Log Elevation Stats.
+    # update_logs({f"{dem1_Name} elevation stats before filling:": dem_1_ElevStats})
+    # update_logs({f"{dem2_Name} elevation stats before filling: ": dem_2_ElevStats})
+    savePath_ElevHist = os.path.join(parentDirDEM_1,'ElevationHist.png')
+    plotRasterHistComparison(dem_1,dem_2,title=f' Elevation comparison', ax_x_units ='Elevation (m)', savePath=savePath_ElevHist)
+    savePath_ElevPDF = os.path.join(parentDirDEM_1,'ElevationPDF.png')
+    plotRasterPDFComparison(dem_1,dem_2,title=f' Elevation PDF comparison', ax_x_units ='Elevation (m)',savePath=savePath_ElevPDF)
+    savePathe_Correlation50k = os.path.join(parentDirDEM_1,'Correlation50KPoints.png')
+    plotRasterCorrelationScattered(dem_1,dem_2,title = f'DEMs correlation',numOfSamples=50000,savePath = savePathe_Correlation50k)
+    savePathe_Correlation1M = os.path.join(parentDirDEM_1,'Correlation1MPoints.png')
+    dataset = plotRasterCorrelationScattered(dem_1,dem_2,title = f'DEMs correlation',numOfSamples=1000000, savePath=savePathe_Correlation1M)
     update_logs({f" First 30 samples from scatter plot: ": dataset[0:30,:]})
 
 #   ################______ SLOPE statistics: Compute mean, std, mode, max and min. Compare slope histograms."
-#         # Compute Slope and Slope stats
-    dem_1_Slope = WbT.computeSlope(dem_1)
-    dem_1_SlopStats = computeRaterStats(dem_1_Slope)
-    dem_2_Slope = WbT.computeSlope(dem_2)
-    dem_2_SlopeStats  = computeRaterStats(dem_2_Slope)
+# #         # Compute Slope and Slope stats
+#     dem_1_Slope = WbT.computeSlope(dem_1)
+#     dem_1_SlopStats = computeRaterStats(dem_1_Slope)
+#     dem_2_Slope = WbT.computeSlope(dem_2)
+#     dem_2_SlopeStats  = computeRaterStats(dem_2_Slope)
 
-# #         # Log Slope Stats.
-    update_logs({f"{dem1_Name} slope stat ": dem_1_SlopStats})
-    update_logs({f"{dem2_Name} slope stat ": dem_2_SlopeStats})
-        # plot elevation histogram
-    print("### >>>> Preparing Slope plot......")
-    plotRasterHistComparison(dem_1_Slope,dem_2_Slope,title = f'Slope histograms comparison',bins=[0,1,2,4,6,8,10,15,30,45], ax_x_units= 'Slope (%)')
-    plotRasterPDFComparison(dem_1_Slope,dem_2_Slope,title = f'Slope PDF comparison',ax_x_units= 'Slope (%)', globalMax=45)
+# # #         # Log Slope Stats.
+#     update_logs({f"{dem1_Name} slope stat ": dem_1_SlopStats})
+#     update_logs({f"{dem2_Name} slope stat ": dem_2_SlopeStats})
+#         # plot elevation histogram
+#     print("### >>>> Preparing Slope plot......")
+#     savePath_SlopeHist = os.path.join(parentDirDEM_1,'SlopeHist.png')
+#     plotRasterHistComparison(dem_1_Slope,dem_2_Slope,title = f'Slope histograms comparison',bins=[0,1,2,4,6,8,10,15,30,45], ax_x_units= 'Slope (%)',savePath=savePath_SlopeHist)
+#     savePath_SlopePDF = os.path.join(parentDirDEM_1,'SlopeHist.png')
+#     plotRasterPDFComparison(dem_1_Slope,dem_2_Slope,title = f'Slope PDF comparison',bins=[0,1,2,4,6,8,10,15,30,45], ax_x_units= 'Slope (%)', globalMax=45, savePath=savePath_SlopePDF)
   
      ## Plot 
     plt.show()
-#    
+  
 #######################
 ### Rasterio Tools  ###
 #######################
