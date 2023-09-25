@@ -10,7 +10,9 @@ def main(cfg: DictConfig):
 
     # U.reportSResDEMComparison(cfg)
 
-    U.reportSResDEMComparisonSimplified(cfg)
+    # U.reportSResDEMComparisonSimplified(cfg)
+
+    U.mapDifferencesErrorAnalyse(cfg)
     
 if __name__ == "__main__":
     with U.timeit():
