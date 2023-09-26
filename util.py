@@ -279,6 +279,44 @@ def saveLogsAsTxt():
     # Add the file handler to the logger
     logger.addHandler(handler)
 
+def errorSummary(distribution1, distribution2,savePath:str='', save:bool=True, show:bool=False)->[np.array, dict]:
+    '''
+    Summaries the error between <numOfSamples> from two distributions. The function shows a plot of the errors with respect to a zero error line, and report stats in the error graphic's title. 
+    @distribution1, @distribution2: Distributions in vector format. NOTE: Distributions must have the same number of points. 
+    @return: [Errors ( np.array ),errorSummary (dict)]. 
+        Errors-> The list of errors from the pointwise comparison. 
+        errorSummary -> Dictionary with statistics from the error in format {'R-squared': f"{r_squared:.4f}",'RMS': f"{rms_error:.2f}", 'Min': f"{min_error:.2f}","Max": f"{max_error:.2f}","Mean": f"{mean_error:.2f}"}.    
+    '''
+    # Calculate the error between the two distributions
+    error = np.array(distribution1) - np.array(distribution2)
+    print(f'Error shape into error summary:  {error.shape}') 
+
+    # Calculate the R-squared coefficient
+    r_squared = r2_score(distribution1, distribution2)
+    # Calculate statistics from the error
+    mean_error = np.mean(error)
+    rms_error = np.sqrt(np.mean(np.square(error)))
+    min_error = np.min(error)
+    max_error = np.max(error)
+    # Plot the error
+    fig, ax = plt.subplots()
+    ax.plot(error, marker='o', linestyle= (0, (1, 10)), linewidth=0.35, color='blue')
+    ax.axhline(0, color='red', linestyle='--')
+    ax.set_xlabel('Data Point')
+    ax.set_ylabel('Error')
+    ax.set_title(f'Error summary \n  R-squared: {r_squared:.4f} RMS: {rms_error:.2f} \n   Min: {min_error:.2f}   Max: {max_error:.2f}   Mean: {mean_error:.2f}')
+    errorSummary = {'R-squared': f"{r_squared:.4f}",'RMS': f"{rms_error:.2f}", 'Min': f"{min_error:.2f}","Max": f"{max_error:.2f}","Mean": f"{mean_error:.2f}"}
+    
+    if save:
+        if not savePath:
+            savePath = os.path.join(os.getcwd(),'errorSummary.png')
+            print(f'Figure: Error Summary saved to dir: {savePath}')
+        plt.savefig(savePath)
+    
+    if show:
+        plt.show()
+    return error,errorSummary
+
 ###################            
 ### General GIS ###
 ###################
@@ -422,10 +460,6 @@ def plotRasterCorrelationScattered(DEM1,DEM2,title:str='RasterCorrelation', numO
     # Sampling raster by coordinates. 
     
     sampling = randomSampling_rasters(DEM1,DEM2,numOfSamples)
-
-    # # Removing Nan.
-    # sampling_clean = remove_nan(sampling)
-
     dem_1_Array = sampling[:,2] 
     dem_2_Array = sampling[:,3]
 
@@ -454,6 +488,46 @@ def plotRasterCorrelationScattered(DEM1,DEM2,title:str='RasterCorrelation', numO
         plt.show()
     
     return sampling
+
+def errorSummary_Raster(DEM1Path, DEM2Path,numOfSamples,savePath:str='', save:bool=True,show:bool=False)-> [np.array,np.array, dict]:
+    '''
+    Summaries the error between <numOfSamples> from two rasters. The function shows a plot of the errors with respect to a zero error line, and report stats in the error graphic's title.
+    @DEM1Path, @DEM2Path : Path to the raster files.
+    @numOfSamples : number of random samples to be extracted from dems. The samples are verified NOT to be NoData OR NaN in ANY dem. 
+    @return: [Errors(np.array), samples (np.array), errorSummary (dict)] . 
+        Errors-> The list of errors. 
+        Samples -> The list of samples from the dems with formats [x_coord,y_coord,dem1Value, dem2Value]. 
+        errorSummary -> Dictionary with statistics from the error in format {'R-squared': f"{r_squared:.4f}",'RMS': f"{rms_error:.2f}", 'Min': f"{min_error:.2f}","Max": f"{max_error:.2f}","Mean": f"{mean_error:.2f}"}
+    '''
+    sampling = randomSampling_rasters(DEM1Path,DEM2Path,numOfSamples)
+    dem_1_Array = sampling[:,2] 
+    dem_2_Array = sampling[:,3]
+    # Calculate the error between the two distributions
+    error = dem_1_Array - dem_2_Array
+    # Calculate the R-squared coefficient
+    r_squared = r2_score(dem_1_Array, dem_2_Array)
+    # Calculate statistics from the error
+    mean_error = np.mean(error)
+    rms_error = np.sqrt(np.mean(np.square(error)))
+    min_error = np.min(error)
+    max_error = np.max(error)
+    # Plot the error
+    plt.plot(error, marker='o', linestyle= (0, (1, 10)), linewidth=0.35, color='blue')
+    plt.axhline(0, color='red', linestyle='--')
+    plt.xlabel('Data Point')
+    plt.ylabel('Error')
+    plt.title(f'Error summary \n  R-squared: {r_squared:.4f} RMS: {rms_error:.2f} \n   Min: {min_error:.2f}   Max: {max_error:.2f}   Mean: {mean_error:.2f}')
+    errorSummary = {'R-squared': f"{r_squared:.4f}",'RMS': f"{rms_error:.2f}", 'Min': f"{min_error:.2f}","Max": f"{max_error:.2f}","Mean": f"{mean_error:.2f}"}
+    
+    if save:
+        if not savePath:
+            savePath = os.path.join(os.getcwd(),'errorSummaryRaster.png')
+            print(f'Figure: Error Summary from rasters saved to dir: {savePath}')
+        plt.savefig(savePath)
+
+    if show:
+        plt.show()
+    return error,sampling,errorSummary
 
 def remove_nan_vector(array):
     nan_indices = np.where(np.isnan(array))
@@ -669,14 +743,22 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
        ## Log Elevation Stats.
     update_logs({f"{dem1_Name} elevation stats:": dem_1_ElevStats})
     update_logs({f"{dem2_Name} elevation stats: ": dem_2_ElevStats})
+       
        ## plot elevation histogram
     savePath_ElevHist = os.path.join(parentDirDEM_1,'ElevationHist.png')
     plotRasterHistComparison(dem_1,dem_2,title=f' Elevation comparison', ax_x_units ='Elevation (m)', savePath=savePath_ElevHist)
+    
     savePath_ElevPDF = os.path.join(parentDirDEM_1,'ElevationPDF.png')
     plotRasterPDFComparison(dem_1,dem_2,title=f' Elevation PDF comparison', ax_x_units ='Elevation (m)',savePath=savePath_ElevPDF)
+    
     savePathe_Correlation50k = os.path.join(parentDirDEM_1,'Correlation50KPoints.png')
     samples = plotRasterCorrelationScattered(dem_1,dem_2,title = f'DEMs correlation',numOfSamples=50000,savePath = savePathe_Correlation50k)
-    plot_error(samples[:,2],samples[:,3])
+    
+    ##  Make a summary from the 50K samples in the correlation scatter plot.  
+    savePathe_error50k = os.path.join(parentDirDEM_1,'Errors50KPoints.png')
+    _,errorsummary = errorSummary(samples[:,2],samples[:,3], savePath=savePathe_error50k)
+    update_logs({f"Error stats summary from 50K samples": errorsummary})
+    
     savePathe_Correlation1M = os.path.join(parentDirDEM_1,'Correlation1MPoints.png')
     dataset = plotRasterCorrelationScattered(dem_1,dem_2,title = f'DEMs correlation',numOfSamples=1000000, savePath=savePathe_Correlation1M)
     update_logs({f" First 30 samples from scatter plot: ": dataset[0:30,:]})
@@ -833,65 +915,46 @@ def reportSResDEMComparisonSimplified(cfg: DictConfig):
     logging.info({"WBTools working dir ": WbT.get_WorkingDir()})
 
     ################_____ Elevation statistics before filling : Compute mean, std, mode, max and min. Compare elevation histograms."
-    dem_1_ElevStats = computeRaterStats(dem_1)
-    dem_2_ElevStats = computeRaterStats(dem_2)
+    # dem_1_ElevStats = computeRaterStats(dem_1)
+    # dem_2_ElevStats = computeRaterStats(dem_2)
     
     #    # Log Elevation Stats.
-    update_logs({f"{dem1_Name} elevation stats before filling:": dem_1_ElevStats})
-    update_logs({f"{dem2_Name} elevation stats before filling: ": dem_2_ElevStats})
-    savePath_ElevHist = os.path.join(parentDirDEM_1,'ElevationHist.png')
-    plotRasterHistComparison(dem_1,dem_2,title=f' Elevation comparison', ax_x_units ='Elevation (m)', savePath=savePath_ElevHist)
-    savePath_ElevPDF = os.path.join(parentDirDEM_1,'ElevationPDF.png')
-    plotRasterPDFComparison(dem_1,dem_2,title=f' Elevation PDF comparison', ax_x_units ='Elevation (m)',savePath=savePath_ElevPDF)
+    # update_logs({f"{dem1_Name} elevation stats before filling:": dem_1_ElevStats})
+    # update_logs({f"{dem2_Name} elevation stats before filling: ": dem_2_ElevStats})
+    # savePath_ElevHist = os.path.join(parentDirDEM_1,'ElevationHist.png')
+    # plotRasterHistComparison(dem_1,dem_2,title=f' Elevation comparison', ax_x_units ='Elevation (m)', savePath=savePath_ElevHist)
+    # savePath_ElevPDF = os.path.join(parentDirDEM_1,'ElevationPDF.png')
+    # plotRasterPDFComparison(dem_1,dem_2,title=f' Elevation PDF comparison', ax_x_units ='Elevation (m)',savePath=savePath_ElevPDF)
     savePathe_Correlation50k = os.path.join(parentDirDEM_1,'Correlation50KPoints.png')
-    plotRasterCorrelationScattered(dem_1,dem_2,title = f'DEMs correlation',numOfSamples=50000,savePath = savePathe_Correlation50k)
-    savePathe_Correlation1M = os.path.join(parentDirDEM_1,'Correlation1MPoints.png')
-    dataset = plotRasterCorrelationScattered(dem_1,dem_2,title = f'DEMs correlation',numOfSamples=1000000, savePath=savePathe_Correlation1M)
-    update_logs({f" First 30 samples from scatter plot: ": dataset[0:30,:]})
+    samples = plotRasterCorrelationScattered(dem_1,dem_2,title = f'DEMs correlation',numOfSamples=50000,savePath = savePathe_Correlation50k)
+    
+    savePathe_error50k = os.path.join(parentDirDEM_1,'Errors50KPoints.png')
+    _,errorsummary = errorSummary(samples[:,2],samples[:,3], savePath=savePathe_error50k)
+    update_logs({f"Error stats summary from 50K samples": errorsummary})
+    
+#     savePathe_Correlation1M = os.path.join(parentDirDEM_1,'Correlation1MPoints.png')
+#     dataset = plotRasterCorrelationScattered(dem_1,dem_2,title = f'DEMs correlation',numOfSamples=1000000, savePath=savePathe_Correlation1M)
+#     update_logs({f" First 30 samples from scatter plot: ": dataset[0:30,:]})
 
-#   ################______ SLOPE statistics: Compute mean, std, mode, max and min. Compare slope histograms."
-#         # Compute Slope and Slope stats
-    dem_1_Slope = WbT.computeSlope(dem_1)
-    dem_1_SlopStats = computeRaterStats(dem_1_Slope)
-    dem_2_Slope = WbT.computeSlope(dem_2)
-    dem_2_SlopeStats  = computeRaterStats(dem_2_Slope)
+# #   ################______ SLOPE statistics: Compute mean, std, mode, max and min. Compare slope histograms."
+# #         # Compute Slope and Slope stats
+#     dem_1_Slope = WbT.computeSlope(dem_1)
+#     dem_1_SlopStats = computeRaterStats(dem_1_Slope)
+#     dem_2_Slope = WbT.computeSlope(dem_2)
+#     dem_2_SlopeStats  = computeRaterStats(dem_2_Slope)
 
-# # #         # Log Slope Stats.
-    update_logs({f"{dem1_Name} slope stat ": dem_1_SlopStats})
-    update_logs({f"{dem2_Name} slope stat ": dem_2_SlopeStats})
-        # plot elevation histogram
-    print("### >>>> Preparing Slope plot......")
-    savePath_SlopeHist = os.path.join(parentDirDEM_1,'SlopeHist.png')
-    plotRasterHistComparison(dem_1_Slope,dem_2_Slope,title = f'Slope histograms comparison',bins=[0,1,2,4,6,8,10,15,30,45], ax_x_units= 'Slope (%)',savePath=savePath_SlopeHist)
-    savePath_SlopePDF = os.path.join(parentDirDEM_1,'SlopePDF.png')
-    plotRasterPDFComparison(dem_1_Slope,dem_2_Slope,title = f'Slope PDF comparison', ax_x_units= 'Slope (%)', globalMax=45, savePath=savePath_SlopePDF)
+# # # #         # Log Slope Stats.
+#     update_logs({f"{dem1_Name} slope stat ": dem_1_SlopStats})
+#     update_logs({f"{dem2_Name} slope stat ": dem_2_SlopeStats})
+#         # plot elevation histogram
+#     print("### >>>> Preparing Slope plot......")
+#     savePath_SlopeHist = os.path.join(parentDirDEM_1,'SlopeHist.png')
+#     plotRasterHistComparison(dem_1_Slope,dem_2_Slope,title = f'Slope histograms comparison',bins=[0,1,2,4,6,8,10,15,30,45], ax_x_units= 'Slope (%)',savePath=savePath_SlopeHist)
+#     savePath_SlopePDF = os.path.join(parentDirDEM_1,'SlopePDF.png')
+#     plotRasterPDFComparison(dem_1_Slope,dem_2_Slope,title = f'Slope PDF comparison', ax_x_units= 'Slope (%)', globalMax=45, savePath=savePath_SlopePDF)
   
-     ## Plot 
-    # plt.show()
-
-def plot_error(distribution1, distribution2,show:bool=False):
-    # Calculate the error between the two distributions
-    error = np.array(distribution1) - np.array(distribution2)
-    # Calculate the R-squared coefficient
-    r_squared = 1 - (np.var(error) / np.var(distribution1))
-    
-    # Calculate statistics from the error
-    mean_error = np.mean(error)
-    rms_error = np.sqrt(np.mean(np.square(error)))
-    min_error = np.min(error)
-    max_error = np.max(error)
-
-    # Plot the error
-    plt.plot(error, marker='o', linestyle='-', color='blue')
-    plt.axhline(0, color='red', linestyle='--')
-    plt.xlabel('Data Point')
-    plt.ylabel('Error')
-    plt.title(f'Error summary \n  R-squared: {r_squared:.4f} RMS: {rms_error:.2f} \n   Min: {min_error:.2f}   Max: {max_error:.2f}   Mean: {mean_error:.2f}')
-    
-    if show:
-        plt.show()
-    return error
-
+#      ## Plot 
+#     # plt.show()
 
 #######################
 ### Rasterio Tools  ###
@@ -1243,7 +1306,6 @@ class WbT_dtmTransformer():
     
     def set_WorkingDir(self,NewWDir):
         wbt.set_working_dir(NewWDir)
-
 
 class generalRasterTools():
     def __init__(self, workingDir):
