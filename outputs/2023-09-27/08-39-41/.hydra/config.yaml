@@ -1,0 +1,7 @@
+dem_1: C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\Analyses1\cdem_clip_1\cdem16mvs8m\cdem16mVs8mUpperHalf\right\cdem-dem-clip-1_UpperHalfRight.tif
+dem_2: C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\Analyses1\cdem_clip_1\cdem16mvs8m\cdem16mVs8mUpperHalf\right\SRDEM_max_norm_cdem-clip-1_UpperHalfRight.tif
+layOutOutputPath: C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\Analyses1\cdem_clip_1\cdem16mvs8m\cdem16mVs8mUpperHalf\right\riverNet3thOrd.png
+csv_demList: ''
+csvColumn: ''
+out_resolution: 8
+wporking_dir: .\data
