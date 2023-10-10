@@ -537,19 +537,14 @@ def remove_nan(array):
     cleaned_array = np.delete(array, nan_indices, axis=0)
     return cleaned_array
 
-def computeElevationDiff(pointList, percentOfSampling:float=1, keepElevation:bool = True)->np.array:
+def computeElevationDiffByCoordinates(pointList)->np.array:
     '''
     @pointList: np.array(n,4): The array containing the list of point, where the two first collumns are the coordinates
        and the last two columns are the elevation of two DEMs at the same location. 
     @percentOfSampling: float (0-1)(default=1(100%)): The sampling percentage to take from the input list.
     '''
-    x,y = pointList.shape
-    difArray = np.array((x,y+1))
-    difArray = []
-
-
-    return difArray
-
+    elevDiff = pointList[:,2] - pointList[:,3]
+    return np.column_stack((pointList,elevDiff))
 
 def sampling_Full_rasters(raster1_path, raster2_path) -> np.array:
     '''
@@ -878,8 +873,9 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
       ### Plot 
     # plt.show()
    
-    ### Logging all 50K points for verification. 
-    update_logs({f" 50K amples points from scatter plot: ": samples[0:100,:]})
+    ### Logging all 50K points for verification.
+    samplesPlusElevDiff = computeElevationDiffByCoordinates(samples[0:100,:]) 
+    update_logs({f" 50K amples points from scatter plot: ": samplesPlusElevDiff})
 
 #     # Print a layOut with both 3rd order river networks vectors. 
     QT.overlap_vectors(river3rd_dem_1_shape,river3rd_dem_2_shape,layOutPath)   
