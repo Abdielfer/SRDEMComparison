@@ -536,7 +536,21 @@ def remove_nan(array):
     nan_indices = np.where(np.isnan(array).any(axis=1))[0]
     cleaned_array = np.delete(array, nan_indices, axis=0)
     return cleaned_array
-    
+
+def computeElevationDiff(pointList, percentOfSampling:float=1, keepElevation:bool = True)->np.array:
+    '''
+    @pointList: np.array(n,4): The array containing the list of point, where the two first collumns are the coordinates
+       and the last two columns are the elevation of two DEMs at the same location. 
+    @percentOfSampling: float (0-1)(default=1(100%)): The sampling percentage to take from the input list.
+    '''
+    x,y = pointList.shape
+    difArray = np.array((x,y+1))
+    difArray = []
+
+
+    return difArray
+
+
 def sampling_Full_rasters(raster1_path, raster2_path) -> np.array:
     '''
     This code takes two input rasters and returns an array with four columns: [x_coordinate, y_coordinate, Z_value rater one, Z_value rater two]. 
@@ -759,7 +773,6 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
     
     savePathe_Correlation1M = os.path.join(parentDirDEM_1,'Correlation1MPoints.png')
     dataset = plotRasterCorrelationScattered(dem_1,dem_2,title = f'DEMs correlation',numOfSamples=1000000, savePath=savePathe_Correlation1M)
-    update_logs({f" First 30 samples from scatter plot: ": dataset[0:30,:]})
 
     ################______ SLOPE statistics: Compute mean, std, mode, max and min. Compare slope histograms."
         ## Compute Slope and Slope stats
@@ -862,8 +875,11 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
     d8Pionter_dem_2 = WbT.d8FPointerRasterCalculation(dem_2_Filled)
     river3rd_dem_2_shape = WbT.rasterStreamToVector(river3rd_dem_2_Name, d8Pionter_dem_2)
 
-#     ## Plot 
+      ### Plot 
     # plt.show()
+   
+    ### Logging all 50K points for verification. 
+    update_logs({f" 50K amples points from scatter plot: ": samples[0:100,:]})
 
 #     # Print a layOut with both 3rd order river networks vectors. 
     QT.overlap_vectors(river3rd_dem_1_shape,river3rd_dem_2_shape,layOutPath)   
@@ -925,8 +941,7 @@ def reportSResDEMComparisonSimplified(cfg: DictConfig):
     plotRasterPDFComparison(dem_1,dem_2,title=f' Elevation PDF comparison', ax_x_units ='Elevation (m)',savePath=savePath_ElevPDF)
     savePathe_Correlation50k = os.path.join(parentDirDEM_1,'Correlation50KPoints.png')
     samples = plotRasterCorrelationScattered(dem_1,dem_2,title = f'DEMs correlation 50K points',numOfSamples=50000,savePath = savePathe_Correlation50k)
-    update_logs({f" First 30 samples from 50K points correlation plot: ": samples[0:30,:]})
-   
+       
     savePathe_error50k = os.path.join(parentDirDEM_1,'Errors50KPoints.png')
     _,errorsummary = errorSummary(samples[:,2],samples[:,3], savePath=savePathe_error50k)
     update_logs({f"Error stats summary from 50K samples": errorsummary})
@@ -951,6 +966,7 @@ def reportSResDEMComparisonSimplified(cfg: DictConfig):
     savePath_SlopePDF = os.path.join(parentDirDEM_1,'SlopePDF.png')
     plotRasterPDFComparison(dem_1_Slope,dem_2_Slope,title = f'Slope PDF comparison', ax_x_units= 'Slope (%)', globalMax=45, savePath=savePath_SlopePDF)
 
+    update_logs({f" First 30 samples from 50K points correlation plot: ": samples[0:100,:]})
 
 #######################
 ### Rasterio Tools  ###
