@@ -1,0 +1,7 @@
+dem_1: C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\Analyse2_05Oct\desm_Clip3\HRDSM_Vs_SRescdsm\SRDEM_MaxNorm_degloss10_cdsm_clip3_EllipsClipMask.tif
+dem_2: C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\Analyse2_05Oct\desm_Clip3\HRDSM_Vs_SRescdsm\HRDSM_Clip_3-8m-3979_EllipsoidalMasked.tif
+layOutOutputPath: C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\Analyse2_05Oct\desm_Clip3\HRDSM_Vs_SRescdsm\riverNet3thOrd.png
+csv_demList: ''
+csvColumn: ''
+out_resolution: 8
+wporking_dir: .\data

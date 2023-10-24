@@ -76,7 +76,7 @@ def createListFromCSVColumn(csv_file_location, col_idx, delim:str =','):
     @return: list from <col_id> in <csv_file_location>.
     Argument:
     @csv_file_location: full path file location and name.
-    @col_idx : number or str(name)of the desired collumn to extrac info from (Consider index 0 <default> for the first column, if no names are assigned in csv header.)
+    @col_idx : number or str(name)of the desired column to extract info from (Consider index 0 <default> for the first column, if no names are assigned in csv header.)
     @delim: Delimiter to pass to pd.read_csv() function. Default = ','.
     '''       
     x=[]
@@ -95,7 +95,7 @@ def createListFromExelColumn(excell_file_location,Sheet_id:str, col_idx:str):
     @return: list from <col_id> in <excell_file_location>.
     Argument:
     @excell_file_location: full path file location and name.
-    @col_id : number of the desired collumn to extrac info from (Consider index 0 for the first column)
+    @col_id : number of the desired columns to extract info from (Consider index 0 for the first column)
     '''       
     x=[]
     df = pd.ExcelFile(excell_file_location).parse(Sheet_id)
@@ -103,18 +103,18 @@ def createListFromExelColumn(excell_file_location,Sheet_id:str, col_idx:str):
         x.append(i)
     return x
 
-def splitFilenameAndExtention(file_path):
+def splitFilenameAndextension(file_path):
     '''
     pathlib.Path Options: 
     '''
     fpath = pathlib.Path(file_path)
-    extention = fpath.suffix
+    extension = fpath.suffix
     name = fpath.stem
-    return name, extention 
+    return name, extension 
 
-def replaceExtention(inPath,newExt: str)->os.path :
+def replaceExtension(inPath,newExt: str)->os.path :
     '''
-    Just remember to add the poin to the new ext -> '.map'
+    Just remember to add the point to the new ext -> '.map'
     '''
     dir,fileName = ntpath.split(inPath)
     _,actualExt = ntpath.splitext(fileName)
@@ -129,13 +129,13 @@ def get_parenPath_name_ext(filePath):
          ex: parentPath[0] => '/src/goo/scripts/'; parentPath[1] => '/src/goo/', etc...
     '''
     parentPath = pathlib.PurePath(filePath).parent
-    name, ext = splitFilenameAndExtention(filePath)
+    name, ext = splitFilenameAndextension(filePath)
     return parentPath, name, ext
   
 def addSubstringToName(path, subStr: str, destinyPath = None) -> os.path:
     '''
     @path: Path to the raster to read. 
-    @subStr:  String o add at the end of the origial name
+    @subStr:  String o add at the end of the original name
     @destinyPath (default = None)
     '''
     parentPath,name,ext= get_parenPath_name_ext(path)
@@ -147,7 +147,7 @@ def addSubstringToName(path, subStr: str, destinyPath = None) -> os.path:
 def replaceName_KeepPathAndExt(path, newName: str) -> os.path:
     '''
     @path: Path to the raster to read. 
-    @subStr:  String o add at the end of the origial name
+    @subStr:  String o add at the end of the original name
     @destinyPath (default = None)
     '''
     parentPath,_,ext= get_parenPath_name_ext(path)
@@ -156,8 +156,8 @@ def replaceName_KeepPathAndExt(path, newName: str) -> os.path:
 def createCSVFromList(pathToSave: os.path, listData:list):
     '''
     This function create a *.csv file with one line per <lstData> element. 
-    @pathToSave: path of *.csv file to be writed with name and extention.
-    @listData: list to be writed. 
+    @pathToSave: path of *.csv file to be written with the name and extension.
+    @listData: list to be written. 
     '''
     parentPath,name,_ = get_parenPath_name_ext(pathToSave)
     textPath = makePath(parentPath,(name+'.txt'))
@@ -204,7 +204,7 @@ def listFreeFilesInDirByExt_fullPath(cwd:str, ext = '.csv') -> list:
     for (root,_, file) in os.walk(cwd, followlinks=True):
         for f in file:
             # print(f"Current f: {f}")
-            _,extent = splitFilenameAndExtention(f)
+            _,extent = splitFilenameAndextension(f)
             # print(f"Current extent: {extent}")
             if ext == extent:
                 file_list.append(os.path.join(root,f))
@@ -214,7 +214,7 @@ class logg_Manager:
     '''
     This class creates a logger object that writes logs to both a file and the console. 
     @log_name: lLog_name. Logged at the info level by default.
-    @log_dict: Dictionary, Sets the <attributes> with <values> in the dictionary. 
+    @log_dict: Dictionary, Set the <attributes> with <values> in the dictionary. 
     The logger can be customized by modifying the logger.setLevel and formatter attributes.
 
     The update_logs method takes a dictionary as input and updates the attributes of the class to the values in the dictionary. The method also takes an optional level argument that determines the severity level of the log message. 
@@ -315,6 +315,17 @@ def errorSummary(distribution1, distribution2,savePath:str='', save:bool=True, s
         plt.show()
     return error,errorSummary
 
+def writeArrayToFile(array, autPath):
+    '''
+    This function takes an array as input and writes its contents to a text file, with each row of the array written as a new line in the output text file.
+    @array (list): The input array.
+    @filename (str): The name of the output text file. Remember to add the extension(ex. text.txt)
+    @Returns: None
+    '''
+    with open(autPath, 'w') as f:
+        for row in array:
+            f.write(','.join(row) + '\n')
+
 ###################            
 ### General GIS ###
 ###################
@@ -322,7 +333,7 @@ def errorSummary(distribution1, distribution2,savePath:str='', save:bool=True, s
 def reshape_as_raster(arr):
     '''  
     From GDL
-        swap the axes order from (rows, columns, bands) to (bands, rows, columns)
+        swap the axis order from (rows, columns, bands) to (bands, rows, columns)
     Parameters
     ----------
     arr : array-like in the image form of (rows, columns, bands)
@@ -380,7 +391,7 @@ def plotRasterPDFComparison(DEM1,DEM2,title:str='RasterPDFRasterPDF', ax_x_units
     '''
     # this create the kernel, given an array it will estimate the probability over that values
     kde = gaussian_kde( data )
-    # these are the values over wich your kernel will be evaluated
+    # these are the values over which your kernel will be evaluated
     dist_space = linspace( min(data), max(data), 100 )
     # plot the results
     plt.plot( dist_space, kde(dist_space))
@@ -445,9 +456,9 @@ def plotRasterPDFComparison(DEM1,DEM2,title:str='RasterPDFRasterPDF', ax_x_units
 def plotRasterCorrelationScattered(DEM1,DEM2,title:str='RasterCorrelation', numOfSamples:int=100000, show:bool=False,save:bool=True, savePath:str='')->np.array:
     '''
     This function takes <numOfSamples> random points, verifying they are valid in both maps, and plot the
-    correlation in scatter plot form. The r^2 coeffitient is also calculated and showed in the title of the printed figure. The values of shosen points are taken from the pixel's centre. 
-    @DEM1, @DEm2: The input digital elevation (terrain, surface) models. The inputs is expected to have ONLY ONE layer.
-    @numOfSamples: The number of valid points to extrat from the DEMs. 
+    correlation in scatter plot form. The r^2 coefficient is also calculated and showed in the title of the printed figure. The values of chosen points are taken from the pixel's centre. 
+    @DEM1, @DEm2: The input digital elevation (terrain, surface) models. The input is expected to have ONLY ONE layer.
+    @numOfSamples: The number of valid points to extract from the DEMs. 
     @return: an array containing all sampled points and the coordinates for verification porpos
        return shape: [x_coord, y_coord,DEM1Value, DEM2Value]
 
@@ -472,7 +483,7 @@ def plotRasterCorrelationScattered(DEM1,DEM2,title:str='RasterCorrelation', numO
     r2 = r2_score(dem_1_Array, dem_2_Array)
    
     # Set the ax labels, title and legend
-    ax.set_title(title+ '\n'+ f'R^2 Coefficient: {r2:.4f}' + f' from {numOfSamples} points')
+    ax.set_title(title+ '\n'+ f'R^2 = {r2:.4f}' + f' from {numOfSamples} points')
     ax.set_xlabel(dem1_Name) 
     ax.set_ylabel(dem2_Name)
     
@@ -514,7 +525,7 @@ def errorSummary_Raster(DEM1Path, DEM2Path,numOfSamples,savePath:str='', save:bo
     plt.axhline(0, color='red', linestyle='--')
     plt.xlabel('Data Point')
     plt.ylabel('Error')
-    plt.title(f'Error summary \n  R-squared: {r_squared:.4f} RMS: {rms_error:.2f} \n   Min: {min_error:.2f}   Max: {max_error:.2f}   Mean: {mean_error:.2f}')
+    plt.title(f'Error summary \n  R^2 = {r_squared:.4f} RMS: {rms_error:.2f} \n   Min: {min_error:.2f}   Max: {max_error:.2f}   Mean: {mean_error:.2f}')
     errorSummary = {'R-squared': f"{r_squared:.4f}",'RMS': f"{rms_error:.2f}", 'Min': f"{min_error:.2f}","Max": f"{max_error:.2f}","Mean": f"{mean_error:.2f}"}
     
     if save:
@@ -539,7 +550,7 @@ def remove_nan(array):
 
 def computeElevationDiffByCoordinates(pointList)->np.array:
     '''
-    @pointList: np.array(n,4): The array containing the list of point, where the two first collumns are the coordinates
+    @pointList: np.array(n,4): The array containing the list of points, where the first two columns are the coordinates
        and the last two columns are the elevation of two DEMs at the same location. 
     @percentOfSampling: float (0-1)(default=1(100%)): The sampling percentage to take from the input list.
     '''
@@ -548,10 +559,10 @@ def computeElevationDiffByCoordinates(pointList)->np.array:
 
 def sampling_Full_rasters(raster1_path, raster2_path) -> np.array:
     '''
-    This code takes two input rasters and returns an array with four columns: [x_coordinate, y_coordinate, Z_value rater one, Z_value rater two]. 
+    This code takes two input rasters and returns an array with four columns: [x_coordinate, y_coordinate, Z_value  raster one, Z_value raster two]. 
     The first input raster is used as a reference. 
     The two rasters are assumed to be in the same CRS but not necessarily with the same resolution. 
-    The algorithm samples the center of all pixels using the upper-left corner of the first raster as a reference.
+    The algorithm samples the centre of all pixels using the upper-left corner of the first raster as a reference.
     When you read a raster with GDAL, the raster transformation is represented by a <geotransform>. The geotransform is a six-element tuple that describes the relationship between pixel coordinates and georeferenced coordinates ⁴. The elements of the geotransform are as follows:
     
     RASTER Transformation content 
@@ -571,7 +582,7 @@ def sampling_Full_rasters(raster1_path, raster2_path) -> np.array:
     `x_pixel` and `y_line` : pixel coordinates of a point in the raster, 
     `x_geo` and `y_geo` : corresponding georeferenced coordinates.
 
-    In addition, to extract the value in the center of the pixels, we add 1/2 of width and hight respectively.
+    In addition, to extract the value in the centre of the pixels, we add 1/2 of width and height respectively.
     x_coord = i * raster1_transform[1] + raster1_transform[0] + raster1_transform[1]/2 
     y_coord = j * raster1_transform[5] + raster1_transform[3] + raster1_transform[5]/2
 
@@ -618,10 +629,10 @@ def sampling_Full_rasters(raster1_path, raster2_path) -> np.array:
     
 def randomSampling_rasters(raster1_path, raster2_path, num_samples) -> np.array:
     '''
-    This code takes two input rasters and returns an array with four columns: [x_coordinate, y_coordinate, Z_value rater one, Z_value rater two]. 
+    This code takes two input rasters and returns an array with four columns: [x_coordinate, y_coordinate, Z_value rather one, Z_value rather two]. 
     The first input raster is used as a reference. 
     The two rasters are assumed to be in the same CRS but not necessarily with the same resolution. 
-    The algorithm samples the center of all pixels using the upper-left corner of the first raster as a reference.
+    The algorithm samples the centre of all pixels using the upper-left corner of the first raster as a reference.
     When you read a raster with GDAL, the raster transformation is represented by a <geotransform>. The geotransform is a six-element tuple that describes the relationship between pixel coordinates and georeferenced coordinates ⁴. The elements of the geotransform are as follows:
     
     RASTER Transformation content 
@@ -641,7 +652,7 @@ def randomSampling_rasters(raster1_path, raster2_path, num_samples) -> np.array:
     `x_pixel` and `y_line` : pixel coordinates of a point in the raster, 
     `x_geo` and `y_geo` : corresponding georeferenced coordinates.
 
-    In addition, to extract the value in the center of the pixels, we add 1/2 of width and hight respectively.
+    In addition, to extract the value in the centre of the pixels, we add 1/2 of width and height respectively.
     x_coord = i * raster1_transform[1] + raster1_transform[0] + raster1_transform[1]/2 
     y_coord = j * raster1_transform[5] + raster1_transform[3] + raster1_transform[5]/2
 
@@ -681,7 +692,7 @@ def randomSampling_rasters(raster1_path, raster2_path, num_samples) -> np.array:
         value1 = raster1_band.ReadAsArray(i, j, 1, 1)[0][0]
         value2 = raster2_band.ReadAsArray(i, j, 1, 1)[0][0]
 
-        # Check if both values are NOT: NoData OR NaN
+        # Check if neither value is : NoData OR NaN
         if (value1!= raster1_noDataValue and value1 != np.NaN and value2 != raster2_noDataValue and value2 != np.NaN):
             # Add the values to the samples array
             samples[sampleCont] = [x, y, value1, value2]
@@ -875,7 +886,7 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
    
     ### Logging all 50K points for verification.
     samplesPlusElevDiff = computeElevationDiffByCoordinates(samples[0:100,:]) 
-    update_logs({f" 50K amples points from scatter plot: ": samplesPlusElevDiff})
+    update_logs({f" 50K sample points from scatter plot: ": samplesPlusElevDiff})
 
 #     # Print a layOut with both 3rd order river networks vectors. 
     QT.overlap_vectors(river3rd_dem_1_shape,river3rd_dem_2_shape,layOutPath)   
@@ -888,7 +899,7 @@ def reportSResDEMComparison(cfg: DictConfig, emptyGarbage:bool=True):
 def reportSResDEMComparisonSimplified(cfg: DictConfig):
     '''
     The goal of this function is to create a report of comparison, between two DEMs.
-    BOTH DEMs must be in the same folder. ALL outputs will be writen to this folder. You can automaticaly delete all intermediary results of your choice by filling uncomment the lines of code to fill 
+    BOTH DEMs must be in the same folder. ALL outputs will be written to this folder. You can automatically delete all intermediary results of your choice by filling uncomment the lines of code to fill. 
     
     Inputs: 
     @cfg: DictConfig. Hydra config dictionary containing the path to the DEMs to be compared as <dem_1> and <dem_2>
@@ -900,7 +911,7 @@ def reportSResDEMComparisonSimplified(cfg: DictConfig):
         DEM to compare with srdem. 
 
 
-    Goals: Report some geomorphological measurements to compare the super-Resolution algorithms output with the a reference DEM. 
+    Goals: Report some geomorphological measurements to compare the super-Resolution algorithms output with a reference DEM. 
 
         The similarity between the DEM and srdem will be evaluated through statistics summary and visual inspection. Since both dems could be not in the same resolution, the comparison is made in terms of percentage and visual inspection. 
         
@@ -908,7 +919,7 @@ def reportSResDEMComparisonSimplified(cfg: DictConfig):
 
         - Elevation and slope comparison:
                 statistics' summary , compute Min, Man, Mean, STD, Mode and the NoNaNCont. 
-                Compare the histogram shapes in bar form an PDF form. 
+                Compare the histogram shapes in bar form a PDF form. 
         
     '''
     
@@ -1093,16 +1104,16 @@ def replace_negative_values(raster_path, fillWith:float = np.nan):
 
 ## LocalPaths and global variables: to be adapted to your needs ##
 currentDirectory = os.getcwd()
-wbt = WhiteboxTools()  ## Need to create an instanace on WhiteBoxTools to call the functions.
+wbt = WhiteboxTools()  ## Need to create an instance on WhiteBoxTools to call the functions.
 wbt.set_working_dir(currentDirectory)
 print(f"Current dir  {currentDirectory}")
 wbt.set_verbose_mode(True)
-wbt.set_compress_rasters(True) # compress the rasters map. Just ones in the code is needed
+wbt.set_compress_rasters(True) # compress the rasters map. Just the ones in the code is needed.
 
     ## Pretraitment #
 class WbT_dtmTransformer():
     '''
-     This class contain some functions to generate geomorphological and hydrological features from DEM.
+     This class contains some functions to generate geomorphological and hydrological features from DEM.
     Functions are based on WhiteBoxTools and Rasterio libraries. For optimal functionality DTM’s most be high resolution, ideally Lidar derived  1m or < 2m. 
     '''
     def __init__(self, workingDir: None) -> None:
@@ -1114,7 +1125,7 @@ class WbT_dtmTransformer():
     def fixNoDataAndfillDTM(self, inDTMName, eraseIntermediateRasters = True)-> os.path:
         '''
         Ref:   https://www.whiteboxgeo.com/manual/wbt_book/available_tools/hydrological_analysis.html#filldepressions
-        To ensure the quality of this process, this method execute several steep in sequence, following the Whitebox’s authors recommendation (For mor info see the above reference).
+        To ensure the quality of this process, this method execute several steep in sequence, following the Whitebox author’s recommendation (For more info see the above reference).
         Steps:
         1-	Correct no data values to be accepted for all operation. 
         2-	Fill gaps of no data.
@@ -1123,7 +1134,7 @@ class WbT_dtmTransformer():
         @Argument: 
         -inDTMName: Input DTM name
         -eraseIntermediateRasters(default = True): Erase intermediate results to save storage space. 
-        @Return: True if all process happened successfully, ERROR messages otherwise. 
+        @Return: True if all processes happened successfully, ERROR messages otherwise. 
         @OUTPUT: DTM <filled_ inDTMName> Corrected DTM with wang_and_liu method. 
         '''
         # dtmNoDataValueSetted = addSubstringToName(inDTMName,'_NoDataOK')
@@ -1162,8 +1173,8 @@ class WbT_dtmTransformer():
     def d8FPointerRasterCalculation(self,inFilledDTMName):
         '''
         @argument:
-         @inFilledDTMName: DTM without spurious point ar depression.  
-        @UOTPUT: D8_pioter: Raster tu use as input for flow direction and flow accumulation calculations. 
+         @inFilledDTMName: DTM without spurious points or depression.  
+        @UOTPUT: D8_pointer: Flow direction raster. Input for flow accumulation, stream, etc. 
         '''
         output = addSubstringToName(inFilledDTMName,"_d8Pointer")
         wbt.d8_pointer(
@@ -1231,7 +1242,7 @@ class WbT_dtmTransformer():
         '''
         @FlowAccumulation: Flow accumulation raster.
         @output: Output file path.
-        @Threshold: The threshol to determine whethed a cell is starting a river or not. See ref:
+        @Threshold: The threshold to determine whether a cell is starting a river. See ref:
             https://www.whiteboxgeo.com/manual/wbt_book/available_tools/stream_network_analysis.html#ExtractStreams
         '''
         wbt.extract_streams(
@@ -1250,7 +1261,7 @@ class WbT_dtmTransformer():
         @uotVector (Optional): output vector name. If <None>, it'll be created internally. 
         '''
         if outVector != None: output = outVector
-        else: output= replaceExtention(streams,".shp")
+        else: output= replaceExtension(streams,".shp")
         print(f"Sheck-in on resterStreamTovector output name: {output}")
         wbt.raster_streams_to_vector(
             streams, 
@@ -1287,7 +1298,7 @@ class WbT_dtmTransformer():
         @return: An *.html file with the computed histogram. The file is autoloader. 
         '''
         output = addSubstringToName(inRaster,'_histogram')
-        output = replaceExtention(output, '.html')
+        output = replaceExtension(output, '.html')
         wbt.raster_histogram(
             inRaster, 
             output, 
@@ -1327,7 +1338,7 @@ class generalRasterTools():
         Compute wbt.mosaic across all .tif files into the workingDir.  
         @return: Return True if mosaic succeed, False otherwise. Result is saved to wbt.work_dir. 
         Argument
-        @outpouFileName: The output file name. IMPORTANT: include the "*.tif" extention.
+        @outpouFileName: The output file name. IMPORTANT: include the "*.tif" extension.
         '''
 
         outFilePathAndName = os.path.join(wbt.work_dir,outpouFileName)
@@ -1342,7 +1353,7 @@ class generalRasterTools():
     def rasterResampler(sefl,inputRaster, outputRaster, outputCellSize:int,resampleMethod = 'bilinear'):
         '''
         wbt.Resampler ref: https://www.whiteboxgeo.com/manual/wbt_book/available_tools/image_processing_tools.html#Resample
-        NOTE: It performes Mosaic if several inputs are provided, in addition to resampling. See refference for details. 
+        NOTE: It performs Mosaic if several inputs are provided, in addition to resampling. See reference for details. 
         @arguments: inputRaster, resampledRaster, outputCellSize:int, resampleMethod:str
         Resampling method; options include 'nn' (nearest neighbour), 'bilinear', and 'cc' (cubic convolution)
         '''
@@ -1364,21 +1375,21 @@ class generalRasterTools():
     def mosaikAndResamplingFromCSV(self,csvName, outputResolution:int, csvColumn:str, clearTransitDir = True):
         '''
         Just to make things easier, this function download from *csv with list of dtm_url,
-         do mosaik and resampling at once. 
-        NOTE: If only one DTM is provided, mosaik is not applyed. 
+         do mosaic and resampling at once. 
+        NOTE: If only one DTM is provided, mosaic is not applied. 
         Steps:
         1- create TransitFolder
         2- For *.csv in the nameList:
-             - create destination Folder with csv name. 
+             - Create a destination Folder with csv name. 
              - import DTM into TransitFolder
-             - mosaik DTM in TransitFoldes if more than one is downloaded.
-             - resample mosaik to <outputResolution> argument
+             - mosaic DTM in TransitFoldes if more than one is downloaded.
+             - resample mosaic to <outputResolution> argument
              - clear TransitFolder
         '''
         ## Preparing for download
         transitFolderPath = createTransitFolder(self.workingDir)
         sourcePath_dtm_ftp = os.path.join(self.workingDir, csvName) 
-        name,ext = splitFilenameAndExtention(csvName)
+        name,ext = splitFilenameAndextension(csvName)
         print('filename :', name, ' ext: ',ext)
         destinationFolder = makePath(self.workingDir,name)
         ensureDirectory(destinationFolder)
@@ -1423,9 +1434,9 @@ class generalRasterTools():
                 callback=default_callback
                 )           
 
-    def gaussianFilter(sefl, input, output, sigma = 0.75):
+    def gaussianFilter(self, input, output, sigma = 0.75):
         '''
-        input@: kernelSize = integer or tupel(x,y). If integer, kernel is square, othewise, is a (with=x,hight=y) rectagle. 
+        input@: kernelSize = integer or tupel(x,y). If integers, kernel is square, otherwise, is a (with=x,hight=y) rectangle. 
         '''
         wbt.gaussian_filter(
         input, 
@@ -1511,7 +1522,7 @@ def setWBTWorkingDir(workingDir):
 def downloadTailsToLocalDir(tail_URL_NamesList, localPath):
     '''
     Import the tails in the url <tail_URL_NamesList>, 
-        to the local ydirectory defined in <localPath>.
+        to the local directory defined in <localPath>.
     '''
     confirmedLocalPath = ensureDirectory(localPath)
     for url in tail_URL_NamesList:
