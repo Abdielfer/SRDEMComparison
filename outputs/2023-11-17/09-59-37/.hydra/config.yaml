@@ -1,0 +1,7 @@
+dem_1: C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\FullDatasetTraining161123\CDEM\HRDEM\HRDTM_AOI_3_8m_3979_Elipsoidal.tif
+dem_2: C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\FullDatasetTraining161123\CDEM\HRDEM\SupRes_AllData_CDEM_Clip3_Masked_Elipsoidal.tif
+layOutOutputPath: C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\FullDatasetTraining161123\CDEM\HRDEM\riverNet3thOrd.png
+csv_demList: ''
+csvColumn: ''
+out_resolution: 8
+wporking_dir: .\data

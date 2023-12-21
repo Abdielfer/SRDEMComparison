@@ -1,7 +1,7 @@
 ### Enter the two DEMs path for the comparison and the layout path to print the two river networks. 
-dem_1 : C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\Analyse2_05Oct\desm_Clip3\cdsmVsSRescdsm\cdsm_clip_3.tif
-dem_2 : C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\Analyse2_05Oct\desm_Clip3\cdsmVsSRescdsm\SRDEM_MaxNorm_degloss10_cdsm_clip3Mask.tif
-layOutOutputPath : C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\Analyse2_05Oct\desm_Clip3\cdsmVsSRescdsm\riverNet3thOrd.png
+dem_1 : C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\FullDatasetTraining161123\CDSM\cdsm\cdsm-canada-dem-clip-3979-3.tif
+dem_2 : C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\FullDatasetTraining161123\CDSM\cdsm\SRDEM__AllData_cdsm_clip3.tif
+layOutOutputPath : C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\FullDatasetTraining161123\CDSM\cdsm\riverNet3thOrd.png
 
 ### Enter the path to the csv file contining the list of urls to download. It can contain one or more url. If multiples tiles are downloaded, the algorith will produce a mosaic with the specified <out_resolution>.
 csv_demList : ''

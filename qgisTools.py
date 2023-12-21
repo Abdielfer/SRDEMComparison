@@ -74,7 +74,6 @@ def overlap_vectors(vector_file1, vector_file2, outPath):
     del layout
     del qgs
 
-
 def createCustomLayout(project:QgsProject, name:str = 'My Layout'):
     # Create a new layout
     manager = project.layoutManager()

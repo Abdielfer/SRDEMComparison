@@ -1,0 +1,7 @@
+dem_1: C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\FullDatasetTraining161123\CDSM\cdsm\CDSM_16m_Clip3_Masked.tif
+dem_2: C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\FullDatasetTraining161123\CDSM\cdsm\SupRes_AllData_cdsm_Clip3_Masked.tif
+layOutOutputPath: C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\FullDatasetTraining161123\CDSM\cdsm\riverNet3thOrd.png
+csv_demList: ''
+csvColumn: ''
+out_resolution: 8
+wporking_dir: .\data

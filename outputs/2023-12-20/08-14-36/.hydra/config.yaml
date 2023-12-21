@@ -1,0 +1,7 @@
+dem_1: C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\FullDatasetTraining161123\CDSM\cdsm\cdsm-canada-dem-clip-3979-3.tif
+dem_2: C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\FullDatasetTraining161123\CDSM\cdsm\SRDEM__AllData_cdsm_clip3.tif
+layOutOutputPath: C:\Users\abfernan\CrossCanFloodMapping\SResDEM\Data\FullDatasetTraining161123\CDSM\cdsm\riverNet3thOrd.png
+csv_demList: ''
+csvColumn: ''
+out_resolution: 8
+wporking_dir: .\data

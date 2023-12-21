@@ -344,6 +344,179 @@ def reshape_as_raster(arr):
 def readRasterAsArry(rasterPath):
    return gdal_array.LoadFile(rasterPath)
 
+### ___ Histogram and error from raster as array 
+def plotElevationList_HistComparison(dem_1_Array:np.array,dem_2_Array:np.array,title:str='rasterHistogram', ax_x_units:str='', bins:int = 100, addmax= False, show:bool=False, save:bool=True, legend = [], savePath:str=''):
+    '''
+    
+
+    '''
+   
+    ## If <bins> is a list, add the maximum value to <bins>.  
+    if (addmax and isinstance(bins,list)):
+        bins.append(np.maximum(np.nanmax(dem_1_Array),np.nanmax(dem_2_Array)).astype(int))
+    
+    # Reading raster. 
+    dataRechaped_1 = np.reshape(dem_1_Array,(1,-1))
+    dataRechaped_2 = np.reshape(dem_2_Array,(1,-1))
+    
+    # Prepare plot
+    fig, ax = plt.subplots(1,sharey=True, tight_layout=True)
+    ax.hist([dataRechaped_1[0],dataRechaped_2[0]],
+            bins,
+            density=True,
+            rwidth=0.8)
+    ax.legend([legend[0],legend[1]], prop={'size': 8})
+    ax.set_title(title)
+    ax.set_xlabel(ax_x_units) 
+    ax.set_ylabel('Frequency')
+   
+    if isinstance(bins,list):
+        plt.xticks(bins)
+        print(bins)
+        plt.gca().set_xticklabels([str(i) for i in bins], minor = True)
+    
+    if save:
+        if not savePath:
+            savePath = os.path.join(os.getcwd(),title +'.png')
+            print(f'Figure: {title} saved to dir: {savePath}')
+        plt.savefig(savePath)
+
+    if show:
+        plt.show()
+
+def plotElevationList_PDFComparison(dem_1_Array:np.array,dem_2_Array:np.array,title:str='RasterPDFRasterPDF', ax_x_units:str='', bins:int = 100, addmax= False, show:bool=False, globalMax:int = 0, save:bool=True, savePath:str='', legendLIst = []):
+    '''
+    # this create the kernel, given an array it will estimate the probability over that values
+    kde = gaussian_kde( data )
+    # these are the values over which your kernel will be evaluated
+    dist_space = linspace( min(data), max(data), 100 )
+    # plot the results
+    plt.plot( dist_space, kde(dist_space))
+    '''
+    
+    ## If <bins> is a list, add the maximum value to <bins>.  
+    if (addmax and isinstance(bins,list)):
+        bins.append(np.maximum(np.nanmax(dem_1_Array),np.nanmax(dem_2_Array)).astype(int))
+    
+    # Reading raster. 
+        ##    Data 1
+    dataRechaped_1 = np.reshape(dem_1_Array,(-1))
+    data1= remove_nan_vector(dataRechaped_1)
+        ##    Data 2
+    dataRechaped_2 = np.reshape(dem_2_Array,(-1))
+    data2= remove_nan_vector(dataRechaped_2)
+    
+    ## Prepare kernels 
+    global_Min = min( min(data1), min(data2))
+    if globalMax == 0: 
+        global_Max = max(max(data1), max(data2))
+    else: 
+        global_Max = globalMax
+       
+    print(data1.shape)
+    kde_D1 = gaussian_kde(data1)
+    dist_space_D1 = linspace(global_Min, global_Max, 100 )
+
+    print(data2.shape)
+    kde_D2 = gaussian_kde(data2)
+    dist_space_D2 = linspace( global_Min, global_Max, 100 )
+    
+    # Prepare plot
+    fig, ax1 = plt.subplots(1,sharey=True, tight_layout=True)  
+    ax1.plot(dist_space_D1,kde_D1(dist_space_D1),alpha=0.6, color='k') 
+    ax1.plot(dist_space_D2,kde_D2(dist_space_D2),alpha=0.6, color='r') 
+    ax1.legend([f"{legendLIst[0]}",f"{legendLIst[1]}"], prop={'size': 8})
+    ax1.set_title(title)
+    ax1.set_xlabel(ax_x_units) 
+    ax1.set_ylabel('Frequency')
+   
+    if isinstance(bins,list):
+        plt.xticks(bins)
+        print(bins)
+        plt.gca().set_xticklabels([str(i) for i in bins], minor = True)
+          
+    if save:
+        if not savePath:
+            savePath = os.path.join(os.getcwd(),title +'.png')
+            print(f'Figure: {title} saved to dir: {savePath}')
+        plt.savefig(savePath)
+    
+    if show:
+        plt.show()
+
+def plotRasterAsArray_CorrelationScattered(dem_1_Array:np.array,dem_2_Array:np.array,title:str='RasterCorrelation', show:bool=False,save:bool=True, savePath:str='', labels = [])->bool:
+    '''
+    This function takes <numOfSamples> random points, verifying they are valid in both maps, and plot the
+    correlation in scatter plot form. The r^2 coefficient is also calculated and showed in the title of the printed figure. The values of chosen points are taken from the pixel's centre. 
+    @DEM1, @DEm2: The input digital elevation (terrain, surface) models. The input is expected to have ONLY ONE layer.
+    @numOfSamples: The number of valid points to extract from the DEMs. 
+    @return: an array containing all sampled points and the coordinates for verification porpos
+       return shape: [x_coord, y_coord,DEM1Value, DEM2Value]
+    '''
+    # Prepare plot
+    fig, ax = plt.subplots()
+    ax.scatter(dem_1_Array, dem_2_Array,linewidths=0.3)
+
+    # Plot the reference line
+    # ax.plot([0, 1], [0, 1], transform=ax.transAxes, linestyle='--', color='black')
+
+    # Calculate and print the R square coefficient
+    r2 = r2_score(dem_1_Array, dem_2_Array)
+    # Set the ax labels, title and legend
+    ax.set_title(title + '\n'+ f'R^2 = {r2:.4f}')#
+    ax.set_xlabel(labels[0]) 
+    ax.set_ylabel(labels[1])
+    
+    if save:
+        if not savePath:
+            savePath = os.path.join(os.getcwd(),title +'.png')
+            print(f'Figure: {title} saved to dir: {savePath}')
+        plt.savefig(savePath)
+    
+    if show:
+        plt.show()
+    
+    return True
+
+def errorSummary_RasterAsArray(dem_1_Array:np.array,dem_2_Array:np.array,savePath:str='', save:bool=True,show:bool=False)-> dict:
+    '''
+    Summaries the error between <numOfSamples> from two rasters. The function shows a plot of the errors with respect to a zero error line, and report stats in the error graphic's title.
+    @DEM1Path, @DEM2Path : Path to the raster files.
+    @numOfSamples : number of random samples to be extracted from dems. The samples are verified NOT to be NoData OR NaN in ANY dem. 
+    @return: [Errors(np.array), samples (np.array), errorSummary (dict)] . 
+        Errors-> The list of errors. 
+        Samples -> The list of samples from the dems with formats [x_coord,y_coord,dem1Value, dem2Value]. 
+        errorSummary -> Dictionary with statistics from the error in format {'R-squared': f"{r_squared:.4f}",'RMS': f"{rms_error:.2f}", 'Min': f"{min_error:.2f}","Max": f"{max_error:.2f}","Mean": f"{mean_error:.2f}"}
+    '''
+    # Calculate the error between the two distributions
+    error = dem_1_Array - dem_2_Array
+    # Calculate the R-squared coefficient
+    r_squared = r2_score(dem_1_Array, dem_2_Array)
+    # Calculate statistics from the error
+    mean_error = np.mean(error)
+    rms_error = np.sqrt(np.mean(np.square(error)))
+    min_error = np.min(error)
+    max_error = np.max(error)
+    # Plot the error
+    plt.plot(error, marker='o', linestyle= (0, (1, 10)), linewidth=0.25, color='blue')
+    plt.axhline(0, color='red', linestyle='--')
+    plt.xlabel('Data Point')
+    plt.ylabel('Error')
+    plt.title(f'Error summary \n  R^2 = {r_squared:.4f} RMS: {rms_error:.2f} \n   Min: {min_error:.2f}   Max: {max_error:.2f}   Mean: {mean_error:.2f}')
+    errorSummary = {'R-squared': f"{r_squared:.4f}",'RMS': f"{rms_error:.2f}", 'Min': f"{min_error:.2f}","Max": f"{max_error:.2f}","Mean": f"{mean_error:.2f}"}
+    
+    if save:
+        if not savePath:
+            savePath = os.path.join(os.getcwd(),'errorSummaryRaster.png')
+            print(f'Figure: Error Summary from rasters saved to dir: {savePath}')
+        plt.savefig(savePath)
+
+    if show:
+        plt.show()
+    return errorSummary
+
+## ___ Histogram and error from raster
+
 def plotRasterHistComparison(DEM1,DEM2,title:str='rasterHistogram', ax_x_units:str='', bins:int = 100, addmax= False, show:bool=False, save:bool=True, savePath:str=''):
     '''
     
@@ -975,6 +1148,14 @@ def reportSResDEMComparisonSimplified(cfg: DictConfig):
 
     update_logs({f" First 30 samples from 50K points correlation plot: ": samples[0:100,:]})
 
+def resamplingGDAL_bicubic(file,uot_file,targ_x,targ_y):
+        # Open the source dataset:
+    ds = gdal.Open(file, 0) # Read Only
+    # Change the resolution:
+    out_ds = gdal.Warp(uot_file, ds, xRes=targ_x, yRes=targ_y, resampleAlg=gdal.GRA_Cubic)
+    out_ds = None
+    ds = None
+
 #######################
 ### Rasterio Tools  ###
 #######################
@@ -1097,18 +1278,17 @@ def replace_negative_values(raster_path, fillWith:float = np.nan):
             dst.write(data)
     return new_raster_path
 
-
 #########################
 ####   WhiteBoxTools  ###
 #########################
 
 ## LocalPaths and global variables: to be adapted to your needs ##
-currentDirectory = os.getcwd()
-wbt = WhiteboxTools()  ## Need to create an instance on WhiteBoxTools to call the functions.
-wbt.set_working_dir(currentDirectory)
-print(f"Current dir  {currentDirectory}")
-wbt.set_verbose_mode(True)
-wbt.set_compress_rasters(True) # compress the rasters map. Just the ones in the code is needed.
+# currentDirectory = os.getcwd()
+# wbt = WhiteboxTools()  ## Need to create an instance on WhiteBoxTools to call the functions.
+# wbt.set_working_dir(currentDirectory)
+# print(f"Current dir  {currentDirectory}")
+# wbt.set_verbose_mode(True)
+# wbt.set_compress_rasters(True) # compress the rasters map. Just the ones in the code is needed.
 
     ## Pretraitment #
 class WbT_dtmTransformer():
